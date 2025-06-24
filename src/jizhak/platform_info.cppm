@@ -1,4 +1,4 @@
-export module platform_info;
+export module jizhak.platform_info;
 
 export namespace jzh::compiler {
     //==========================================================================
