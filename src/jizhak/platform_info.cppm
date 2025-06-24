@@ -6,9 +6,9 @@ export namespace jzh::compiler {
     //==========================================================================
 
     #if defined(__clang__) || defined(__APPLE_CC__)
-    inline constexpr bool clang = true;
+        inline constexpr bool clang = true;
     #else
-    inline constexpr bool clang = false;
+        inline constexpr bool clang = false;
     #endif
 
     #if defined(_MSC_VER) && !defined(__clang__)
@@ -18,9 +18,9 @@ export namespace jzh::compiler {
     #endif
 
     #if defined(__GNUC__) && !defined(__clang__)
-    inline constexpr bool gcc = true;
+        inline constexpr bool gcc = true;
     #else
-    inline constexpr bool gcc = false;
+        inline constexpr bool gcc = false;
     #endif
 }
 
@@ -30,39 +30,39 @@ export namespace jzh::os {
     //==========================================================================
 
     #if defined(_WIN32)
-    inline constexpr bool windows = true;
+        inline constexpr bool is_windows = true;
     #else
-    inline constexpr bool windows = false;
+        inline constexpr bool is_windows = false;
     #endif
 
     #if defined(__linux__)
-    inline constexpr bool linux = true;
+        inline constexpr bool is_linux = true;
     #else
-    inline constexpr bool linux = false;
+        inline constexpr bool is_linux = false;
     #endif
 
     #if defined(__APPLE__) && defined(__MACH__)
-    inline constexpr bool macos = true;
+        inline constexpr bool is_macos = true;
     #else
-    inline constexpr bool macos = false;
+        inline constexpr bool is_macos = false;
     #endif
 
     #if defined(__FreeBSD__)
-    inline constexpr bool freebsd = true;
+        inline constexpr bool is_freebsd = true;
     #else
-    inline constexpr bool freebsd = false;
+        inline constexpr bool is_freebsd = false;
     #endif
 
     #if defined(__android__)
-    inline constexpr bool android = true;
+        inline constexpr bool android = true;
     #else
-    inline constexpr bool android = false;
+        inline constexpr bool android = false;
     #endif
 
     #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
-        inline constexpr bool unix = true;
+        inline constexpr bool is_unix = true;
     #else
-        inline constexpr bool unix = false;
+        inline constexpr bool is_unix = false;
     #endif
 }
 
