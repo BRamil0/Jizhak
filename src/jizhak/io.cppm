@@ -12,11 +12,18 @@ export module jizhak.io;
 import std;
 import jizhak.platform_info;
 
-template<typename T>
-concept is_char_based = std::is_same_v<T, char> || std::is_same_v<T, char8_t>;
 
-namespace jzh::details {
-    [[nodiscard]] std::optional<std::error_code> write_to_console(std::string_view str) {
+template <typename T>
+concept is_supported_string = requires(T t) {
+    { std::basic_string_view(t) } -> std::same_as<std::basic_string_view<typename decltype(std::basic_string_view(t))::value_type>>;
+    requires std::same_as<typename decltype(std::basic_string_view(t))::value_type, char> ||
+             std::same_as<typename decltype(std::basic_string_view(t))::value_type, char8_t>;
+};
+
+export namespace jzh {
+    class Console {
+    private:
+        [[nodiscard]] static std::optional<std::error_code> write_to_console(std::string_view str) {
         #if defined(_WIN32)
             if (str.empty())
                 return std::nullopt;
@@ -46,92 +53,62 @@ namespace jzh::details {
                 throw std::system_error(errno, std::system_category(), "Failed to write to console");
             }
         #endif
-        return std::nullopt;
-    }
-} // namespace jzh::details
-
-export namespace jzh {
-    template <typename... Args>
-    void print(std::format_string<Args...> fmt, Args&&... args) {
-        auto result = details::write_to_console(std::format(fmt, std::forward<Args>(args)...));
-        if (result.has_value()) {
-            throw std::system_error(result.value());
+            return std::nullopt;
         }
-    }
 
-    template <typename... Args>
-    void println(std::format_string<Args...> fmt, Args&&... args) {
-        std::string formatted_str = std::format(fmt, std::forward<Args>(args)...);
+        [[nodiscard]] static std::string to_utf8(auto const& input) {
+            auto sv = std::basic_string_view(input);
+            using CharT = typename decltype(sv)::value_type;
 
-        auto result1 = details::write_to_console(formatted_str);
-        if (result1.has_value())
-            throw std::system_error(result1.value());
-
-        auto result2 = details::write_to_console("\n");
-        if (result2.has_value())
-            throw std::system_error(result2.value());
-    }
-
-    inline void print(std::string_view sv) {
-        auto result = details::write_to_console(sv);
-        if (result.has_value())
-            throw std::system_error(result.value());
-    }
-
-    inline void println(std::string_view sv) {
-        auto result1 = details::write_to_console(sv);
-        if (result1.has_value())
-            throw std::system_error(result1.value());
-
-        auto result2 = details::write_to_console("\n");
-        if (result2.has_value())
-            throw std::system_error(result2.value());
-    }
-
-    template <typename... Args>
-    void print(const std::u8string_view fmt_u8, Args&&... args) {
-        std::string_view fmt_sv(reinterpret_cast<const char*>(fmt_u8.data()), fmt_u8.size());
-        std::string fmt_str(fmt_sv);
-
-        auto result = details::write_to_console(std::vformat(fmt_str, std::make_format_args(args...)));
-        if (result.has_value()) {
-            throw std::system_error(result.value());
+            if constexpr (std::is_same_v<CharT, char>) {
+                return std::string(sv);
+            }
+            else if constexpr (std::is_same_v<CharT, char8_t>) {
+                return std::string(reinterpret_cast<const char*>(sv.data()), sv.size());
+            }
+            else {
+                return "";
+            }
         }
+
+        [[nodiscard]] static auto convert_format_arg(auto const& arg) {
+            using T = std::decay_t<decltype(arg)>;
+            if constexpr (std::is_same_v<T, const char8_t*>)
+                return reinterpret_cast<const char*>(arg);
+            else if constexpr (std::is_convertible_v<T, std::u8string_view>)
+                return std::string_view(reinterpret_cast<const char*>(std::u8string_view(arg).data()), std::u8string_view(arg).size());
+            else
+                return arg;
+        }
+
+    public:
+        template <typename Fmt, typename... Args> requires(is_supported_string<Fmt>)
+        static void print(Fmt&& fmt, Args&&... args) {
+            std::string fmt_as_utf8 = to_utf8(std::forward<Fmt>(fmt));
+
+            if constexpr (sizeof...(args) == 0) {
+                if (auto error = write_to_console(fmt_as_utf8); error.has_value())
+                    throw std::system_error(error.value());
+            }
+            else {
+                std::string formatted_string = std::vformat(
+                    fmt_as_utf8,
+                    std::make_format_args(convert_format_arg(args)...)
+                );
+                if (auto error = write_to_console(formatted_string); error.has_value())
+                    throw std::system_error(error.value());
+            }
+        }
+    };
+
+    template<typename FormatString, typename... Args>
+    void print(const FormatString& fmt, Args&&... args) {
+        Console::print(std::basic_string_view(fmt), std::forward<Args>(args)...);
     }
 
-    template <typename... Args>
-    void println(const std::u8string_view fmt_u8, Args&&... args) {
-        std::string_view fmt_sv(reinterpret_cast<const char*>(fmt_u8.data()), fmt_u8.size());
-        std::string fmt_str(fmt_sv);
-
-        std::string formatted_str = std::vformat(fmt_str, std::make_format_args(args...));
-
-        auto result1 = details::write_to_console(formatted_str);
-        if (result1.has_value())
-            throw std::system_error(result1.value());
-
-        auto result2 = details::write_to_console("\n");
-        if (result2.has_value())
-            throw std::system_error(result2.value());
-    }
-
-    inline void print(std::u8string_view u8sv) {
-        std::string_view sv(reinterpret_cast<const char*>(u8sv.data()), u8sv.size());
-
-        auto result = details::write_to_console(sv);
-        if (result.has_value())
-            throw std::system_error(result.value());
-    }
-
-    inline void println(std::u8string_view u8sv) {
-        std::string_view sv(reinterpret_cast<const char*>(u8sv.data()), u8sv.size());
-
-        auto result1 = details::write_to_console(sv);
-        if (result1.has_value())
-            throw std::system_error(result1.value());
-
-        auto result2 = details::write_to_console("\n");
-        if (result2.has_value())
-            throw std::system_error(result2.value());
+    template<typename Fmt, typename... Args>
+    void println(Fmt&& fmt, Args&&... args) {
+        Console::print(std::forward<Fmt>(fmt), std::forward<Args>(args)...);
+        Console::print("\n");
     }
 } // namespace jzh
