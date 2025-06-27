@@ -81,14 +81,12 @@ target_include_directories(Jizhak PUBLIC
 # Щоб це працювало, ви маєте створити файл vcpkg.json у корені
 # і налаштувати проєкт командою:
 # cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=[шлях до vcpkg]/scripts/buildsystems/vcpkg.cmake
-#
-# Приклад, як додати бібліотеку 'fmt':
-# 1. Додайте "fmt" у ваш vcpkg.json
-# 2. Розкоментуйте ці рядки:
-#
-# find_package(fmt CONFIG REQUIRED)
-# target_link_libraries(Jizhak PUBLIC fmt::fmt)
 
+find_package(fmt CONFIG REQUIRED)
+target_link_libraries(Jizhak PUBLIC fmt::fmt)
+
+find_package(Boost REQUIRED COMPONENTS locale)
+target_link_libraries(Jizhak PUBLIC Boost::locale)
 
 # ======================================================================
 # ===               ПІДПРОЄКТИ (ТЕСТИ ТА ПРИКЛАДИ)                  ===
