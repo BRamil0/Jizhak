@@ -96,7 +96,11 @@ export namespace jzh {
 
         template <typename T>
         ConsoleIO& operator<<(T&& value) {
-            this->print("{}", std::forward<T>(value));
+            std::string formatted_value = std::format("{}", this->convert_format_arg(std::forward<T>(value)));
+
+            if (auto error = this->write_to_console(formatted_value); error.has_value()) {
+                throw std::system_error(error.value());
+            }
             return *this;
         }
 
@@ -137,12 +141,16 @@ export namespace jzh {
             bool first = true;
             auto print_one_with_space = [&](const auto& arg) {
                 if (!first) {
-                    this->print(this->sep); // Друкуємо пробіл перед кожним елементом, крім першого
+                    if (auto error = this->write_to_console(this->sep); error.has_value())
+                        throw std::system_error(error.value());
                 }
-                this->print("{}", arg);
+                std::string formatted_arg = std::format("{}", this->convert_format_arg(arg));
+
+                if (auto error = this->write_to_console(formatted_arg); error.has_value())
+                    throw std::system_error(error.value());
+
                 first = false;
             };
-
             (print_one_with_space(args), ...);
         }
 
