@@ -31,6 +31,7 @@ export namespace jzh {
         std::string sep = " ";
         std::string end = "\n";
 
+    protected:
         static std::optional<std::error_code> write_to_console(std::string_view str) {
         #if defined(_WIN32)
             if (str.empty())
