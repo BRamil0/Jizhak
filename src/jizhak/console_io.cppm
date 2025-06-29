@@ -26,43 +26,173 @@ concept is_supported_string = requires(T t) {
 };
 
 export namespace jzh {
-    class ConsoleIO {
+    class ConsoleBaseIO {
     private:
         std::string sep = " ";
         std::string end = "\n";
 
     protected:
-        virtual std::optional<std::error_code> write_to_console(std::string_view str) {
-        #if defined(_WIN32)
+        virtual void write_to_console(std::string_view str) {
             if (str.empty())
-                return std::nullopt;
+                return;
 
-            if (str.size() > static_cast<size_t>(std::numeric_limits<int>::max()))
-                return std::make_error_code(std::errc::message_size);
+            #if defined(_WIN32)
+                if (str.size() > static_cast<size_t>(std::numeric_limits<int>::max())) {
+                    throw std::length_error("String size is too large for Windows API");
+                }
 
-            const int str_size_as_int = static_cast<int>(str.size());
+                HANDLE h_std_err = GetStdHandle(STD_OUTPUT_HANDLE);
+                if (h_std_err == INVALID_HANDLE_VALUE) {
+                    throw std::system_error(GetLastError(), std::system_category(), "Failed to get standard error handle");
+                }
 
-            int size_needed = MultiByteToWideChar(CP_UTF8, 0, str.data(), str_size_as_int, nullptr, 0);
-            if (size_needed == 0)
-                throw std::system_error(GetLastError(), std::system_category(), "Failed to get standard output handle");
+                DWORD mode;
+                if (GetConsoleMode(h_std_err, &mode)) {
+                    const int str_size_as_int = static_cast<int>(str.size());
+                    int size_needed = MultiByteToWideChar(CP_UTF8, 0, str.data(), str_size_as_int, nullptr, 0);
+                    if (size_needed == 0) {
+                        throw std::system_error(GetLastError(), std::system_category(), "MultiByteToWideChar failed to calculate size");
+                    }
 
-            std::wstring w_str(size_needed, 0);
+                    std::wstring w_str(size_needed, 0);
+                    MultiByteToWideChar(CP_UTF8, 0, str.data(), str_size_as_int, &w_str[0], size_needed);
 
-            MultiByteToWideChar(CP_UTF8, 0, str.data(), str_size_as_int, &w_str[0], size_needed);
+                    DWORD chars_written = 0;
+                    if (!WriteConsoleW(h_std_err, w_str.c_str(), w_str.size(), &chars_written, nullptr)) {
+                         throw std::system_error(GetLastError(), std::system_category(), "Failed to write to console");
+                    }
+                } else {
+                    DWORD bytes_written = 0;
+                    if (!WriteFile(h_std_err, str.data(), str.size(), &bytes_written, nullptr) || bytes_written != str.size()) {
+                        throw std::system_error(GetLastError(), std::system_category(), "Failed to write to redirected error stream");
+                    }
+                }
 
-            HANDLE h_std_out = GetStdHandle(STD_OUTPUT_HANDLE);
-            const DWORD w_str_size_as_dword = static_cast<DWORD>(w_str.size());
-            WriteConsoleW(h_std_out, w_str.c_str(), w_str_size_as_dword, nullptr, nullptr);
-        #else // POSIX
-            if (str.empty()) {
-                return std::nullopt;
-            }
-            if (write(STDOUT_FILENO, str.data(), str.size()) == -1) {
-                throw std::system_error(errno, std::system_category(), "Failed to write to console");
-            }
-        #endif
-            return std::nullopt;
+            #else // POSIX
+                ssize_t result = ::write(STDOUT_FILENO, str.data(), str.size());
+                if (result == -1) {
+                    throw std::system_error(errno, std::system_category(), "Failed to write to error stream");
+                }
+            #endif
         }
+        [[nodiscard]] static std::string to_utf8(auto const& input) {
+            auto sv = std::basic_string_view(input);
+            using CharT = typename decltype(sv)::value_type;
+
+            if constexpr (std::is_same_v<CharT, char>) {
+                return std::string(sv);
+            } else if constexpr (std::is_same_v<CharT, wchar_t> ||
+                               std::is_same_v<CharT, char8_t> ||
+                               std::is_same_v<CharT, char16_t> ||
+                               std::is_same_v<CharT, char32_t>) {
+                return boost::locale::conv::utf_to_utf<char>(sv.data(), sv.data() + sv.size());
+            } else if constexpr (requires { std::begin(input); std::end(input); }) {
+                return std::string(std::begin(sv), std::end(sv));
+            } else {
+                static_assert(std::is_same_v<CharT, void>, "Unsupported character type for conversion to UTF-8.");
+                return {};
+            }
+        }
+        [[nodiscard]] static auto convert_format_arg(auto const& arg) {
+            using T = std::decay_t<decltype(arg)>;
+
+            if constexpr (std::is_convertible_v<T, std::wstring_view> ||
+                          std::is_convertible_v<T, std::u8string_view> ||
+                          std::is_convertible_v<T, std::u16string_view> ||
+                          std::is_convertible_v<T, std::u32string_view>) {
+                return to_utf8(arg);
+            } else {
+                return arg;
+            }
+        }
+
+    public:
+        ConsoleBaseIO() = default;
+        explicit ConsoleBaseIO(std::string new_sep, std::string new_end)
+            : sep(std::move(new_sep)), end(std::move(new_end)) {}
+
+        ConsoleBaseIO(const ConsoleBaseIO&) = default;
+        ConsoleBaseIO(ConsoleBaseIO&&) = default;
+
+        ConsoleBaseIO& operator=(const ConsoleBaseIO&) = default;
+        ConsoleBaseIO& operator=(ConsoleBaseIO&&) = default;
+
+        virtual ~ConsoleBaseIO() = default;
+
+
+        template <typename T>
+        ConsoleBaseIO& operator<<(T&& value) {
+            std::string formatted_value = fmt::format("{}", this->convert_format_arg(std::forward<T>(value)));
+            this->write_to_console(formatted_value);
+
+            return *this;
+        }
+        ConsoleBaseIO& operator<<(const ConsoleBaseIO& other) {
+            this->write_to_console(other.sep);
+            return *this;
+        }
+
+        [[nodiscard]] std::string get_sep() const { return sep; }
+        [[nodiscard]] std::string get_separator() const { return sep; }
+        [[nodiscard]] std::string get_end() const { return end; }
+
+        void set_sep(std::string &new_sep) { sep = std::move(new_sep); }
+        void set_separator(std::string &new_sep) { sep = std::move(new_sep); }
+        void set_end(std::string &new_end) { end = std::move(new_end); }
+
+        template <typename Fmt, typename... Args> requires(is_supported_string<Fmt>)
+        void print(Fmt&& fmt, Args&&... args) {
+            std::string fmt_as_utf8 = this->to_utf8(std::forward<Fmt>(fmt));
+
+            if constexpr (sizeof...(args) == 0) {
+                this->write_to_console(fmt_as_utf8);
+            } else {
+                auto converted_args = std::make_tuple(this->convert_format_arg(std::forward<Args>(args))...);
+
+                std::string formatted_string = fmt::vformat(
+                    fmt::string_view(fmt_as_utf8.data(), fmt_as_utf8.size()),
+                    std::apply([](auto&&... unpacked_args) {
+                        return fmt::make_format_args(unpacked_args...);
+                    }, converted_args)
+                );
+                this->write_to_console(formatted_string);
+            }
+        }
+
+        template<typename Fmt, typename... Args> requires(is_supported_string<Fmt>)
+        void println(Fmt&& fmt, Args&&... args) {
+            this->print(std::forward<Fmt>(fmt), std::forward<Args>(args)...);
+            this->print(this->end);
+        }
+
+        template<typename... Args>
+        void print_all(Args&&... args) {
+            bool first = true;
+            auto print_one_with_space = [&first, this]<typename T>(T&& arg) {
+                auto&& formatted_arg = this->convert_format_arg(std::forward<T>(arg));
+
+                if (!first) {
+                    this->write_to_console(this->sep);
+                }
+
+                std::string formatted = fmt::format("{}", formatted_arg);
+                this->write_to_console(this->sep);
+
+                first = false;
+            };
+
+            (print_one_with_space(std::forward<Args>(args)), ...);
+        }
+
+        template<typename... Args>
+        void println_all(Args&&... args) {
+            this->print_all(std::forward<Args>(args)...);
+            this->print(this->end);
+        }
+    };
+
+    class ConsoleIO : public ConsoleBaseIO {
+    protected:
         [[nodiscard]] virtual std::string read_interactive(size_t buffer_size, std::string_view stop_chars, bool echo) {
             #if defined(_WIN32)
                 std::wstring result_w; // Збираємо результат у wstring для коректної роботи з Unicode
@@ -156,134 +286,11 @@ export namespace jzh {
             #endif
         }
 
-        [[nodiscard]] static std::string to_utf8(auto const& input) {
-            auto sv = std::basic_string_view(input);
-            using CharT = typename decltype(sv)::value_type;
-
-            if constexpr (std::is_same_v<CharT, char>) {
-                return std::string(sv);
-            } else if constexpr (std::is_same_v<CharT, wchar_t> ||
-                               std::is_same_v<CharT, char8_t> ||
-                               std::is_same_v<CharT, char16_t> ||
-                               std::is_same_v<CharT, char32_t>) {
-                return boost::locale::conv::utf_to_utf<char>(sv.data(), sv.data() + sv.size());
-            } else if constexpr (requires { std::begin(input); std::end(input); }) {
-                return std::string(std::begin(sv), std::end(sv));
-            } else {
-                static_assert(std::is_same_v<CharT, void>, "Unsupported character type for conversion to UTF-8.");
-                return {};
-            }
-        }
-        [[nodiscard]] static auto convert_format_arg(auto const& arg) {
-            using T = std::decay_t<decltype(arg)>;
-
-            if constexpr (std::is_convertible_v<T, std::wstring_view> ||
-                          std::is_convertible_v<T, std::u8string_view> ||
-                          std::is_convertible_v<T, std::u16string_view> ||
-                          std::is_convertible_v<T, std::u32string_view>) {
-                return to_utf8(arg);
-            } else {
-                return arg;
-            }
-        }
-
     public:
-        ConsoleIO() = default;
-        explicit ConsoleIO(std::string new_sep, std::string new_end)
-            : sep(std::move(new_sep)), end(std::move(new_end)) {}
-
-        ConsoleIO(const ConsoleIO&) = default;
-        ConsoleIO(ConsoleIO&&) = default;
-
-        ConsoleIO& operator=(const ConsoleIO&) = default;
-        ConsoleIO& operator=(ConsoleIO&&) = default;
-
-        virtual ~ConsoleIO() = default;
-
-
         template <typename T>
-        ConsoleIO& operator<<(T&& value) {
-            std::string formatted_value = fmt::format("{}", this->convert_format_arg(std::forward<T>(value)));
-
-            if (auto error = this->write_to_console(formatted_value); error.has_value()) {
-                throw std::system_error(error.value());
-            }
-            return *this;
-        }
-        ConsoleIO& operator<<(const ConsoleIO& other) {
-            if (auto error = this->write_to_console(other.sep); error.has_value()) {
-                throw std::system_error(error.value());
-            }
-            return *this;
-        }
-
-        template <typename T>
-        ConsoleIO& operator>>(T& value) {
+        ConsoleBaseIO& operator>>(T& value) {
             value = this->input<std::decay_t<T>>();
             return *this;
-        }
-
-
-        [[nodiscard]] std::string get_sep() const { return sep; }
-        [[nodiscard]] std::string get_separator() const { return sep; }
-        [[nodiscard]] std::string get_end() const { return end; }
-
-        void set_sep(std::string &new_sep) { sep = std::move(new_sep); }
-        void set_separator(std::string &new_sep) { sep = std::move(new_sep); }
-        void set_end(std::string &new_end) { end = std::move(new_end); }
-
-        template <typename Fmt, typename... Args> requires(is_supported_string<Fmt>)
-        void print(Fmt&& fmt, Args&&... args) {
-            std::string fmt_as_utf8 = this->to_utf8(std::forward<Fmt>(fmt));
-
-            if constexpr (sizeof...(args) == 0) {
-                if (auto error = this->write_to_console(fmt_as_utf8); error.has_value())
-                    throw std::system_error(error.value());
-            } else {
-                auto converted_args = std::make_tuple(this->convert_format_arg(std::forward<Args>(args))...);
-
-                std::string formatted_string = fmt::vformat(
-                    fmt::string_view(fmt_as_utf8.data(), fmt_as_utf8.size()),
-                    std::apply([](auto&&... unpacked_args) {
-                        return fmt::make_format_args(unpacked_args...);
-                    }, converted_args)
-                );
-                if (auto error = this->write_to_console(formatted_string); error.has_value())
-                    throw std::system_error(error.value());
-            }
-        }
-
-        template<typename Fmt, typename... Args> requires(is_supported_string<Fmt>)
-        void println(Fmt&& fmt, Args&&... args) {
-            this->print(std::forward<Fmt>(fmt), std::forward<Args>(args)...);
-            this->print(this->end);
-        }
-
-        template<typename... Args>
-        void print_all(Args&&... args) {
-            bool first = true;
-            auto print_one_with_space = [&first, this]<typename T>(T&& arg) {
-                auto&& formatted_arg = this->convert_format_arg(std::forward<T>(arg));
-
-                if (!first) {
-                    if (auto error = this->write_to_console(this->sep); error.has_value())
-                        throw std::system_error(error.value());
-                }
-
-                std::string formatted = fmt::format("{}", formatted_arg);
-                if (auto error = this->write_to_console(formatted); error.has_value())
-                    throw std::system_error(error.value());
-
-                first = false;
-            };
-
-            (print_one_with_space(std::forward<Args>(args)), ...);
-        }
-
-        template<typename... Args>
-        void println_all(Args&&... args) {
-            this->print_all(std::forward<Args>(args)...);
-            this->print(this->end);
         }
 
         template <typename T = std::string> requires(is_supported_string<T> || std::is_integral_v<T> || std::is_floating_point_v<T>)
@@ -322,7 +329,55 @@ export namespace jzh {
         }
     };
 
+    class ConsoleErrorIO : public ConsoleBaseIO {
+    private:
+        void write_to_console(std::string_view str) override {
+            if (str.empty())
+                return;
+
+            #if defined(_WIN32)
+                if (str.size() > static_cast<size_t>(std::numeric_limits<int>::max())) {
+                    throw std::length_error("String size is too large for Windows API");
+                }
+
+                HANDLE h_std_err = GetStdHandle(STD_ERROR_HANDLE);
+                if (h_std_err == INVALID_HANDLE_VALUE) {
+                    throw std::system_error(GetLastError(), std::system_category(), "Failed to get standard error handle");
+                }
+
+                DWORD mode;
+                if (GetConsoleMode(h_std_err, &mode)) {
+                    const int str_size_as_int = static_cast<int>(str.size());
+                    int size_needed = MultiByteToWideChar(CP_UTF8, 0, str.data(), str_size_as_int, nullptr, 0);
+                    if (size_needed == 0) {
+                        throw std::system_error(GetLastError(), std::system_category(), "MultiByteToWideChar failed to calculate size");
+                    }
+
+                    std::wstring w_str(size_needed, 0);
+                    MultiByteToWideChar(CP_UTF8, 0, str.data(), str_size_as_int, &w_str[0], size_needed);
+
+                    DWORD chars_written = 0;
+                    if (!WriteConsoleW(h_std_err, w_str.c_str(), w_str.size(), &chars_written, nullptr)) {
+                         throw std::system_error(GetLastError(), std::system_category(), "Failed to write to console");
+                    }
+                } else {
+                    DWORD bytes_written = 0;
+                    if (!WriteFile(h_std_err, str.data(), str.size(), &bytes_written, nullptr) || bytes_written != str.size()) {
+                        throw std::system_error(GetLastError(), std::system_category(), "Failed to write to redirected error stream");
+                    }
+                }
+
+            #else // POSIX
+                ssize_t result = ::write(STDERR_FILENO, str.data(), str.size());
+                if (result == -1) {
+                    throw std::system_error(errno, std::system_category(), "Failed to write to error stream");
+                }
+            #endif
+        }
+    };
+
     ConsoleIO cio = ConsoleIO();
+    ConsoleErrorIO ceio = ConsoleErrorIO();
 
     template<typename FormatString, typename... Args>
     void print(const FormatString& fmt, Args&&... args) {
