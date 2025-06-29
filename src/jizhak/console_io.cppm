@@ -32,7 +32,7 @@ export namespace jzh {
         std::string end = "\n";
 
     protected:
-        static std::optional<std::error_code> write_to_console(std::string_view str) {
+        virtual std::optional<std::error_code> write_to_console(std::string_view str) {
         #if defined(_WIN32)
             if (str.empty())
                 return std::nullopt;
@@ -63,7 +63,7 @@ export namespace jzh {
         #endif
             return std::nullopt;
         }
-        [[nodiscard]] static std::string read_interactive(size_t buffer_size, std::string_view stop_chars, bool echo) {
+        [[nodiscard]] virtual std::string read_interactive(size_t buffer_size, std::string_view stop_chars, bool echo) {
             #if defined(_WIN32)
                 std::wstring result_w; // Збираємо результат у wstring для коректної роботи з Unicode
                 if (buffer_size > 0) result_w.reserve(buffer_size);
@@ -198,7 +198,7 @@ export namespace jzh {
         ConsoleIO& operator=(const ConsoleIO&) = default;
         ConsoleIO& operator=(ConsoleIO&&) = default;
 
-        ~ConsoleIO() = default;
+        virtual ~ConsoleIO() = default;
 
 
         template <typename T>
