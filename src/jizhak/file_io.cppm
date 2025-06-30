@@ -19,10 +19,6 @@ export namespace jzh {
             append,
             read_write
         };
-        enum struct Encoding {
-            UTF8, UTF8_bom, UTF16_le, UTF16_be, UFT32_le, UTF32_be,
-            ascii, other, binary
-        };
         enum struct OffsetMode {
             begin,
             current,
@@ -30,7 +26,6 @@ export namespace jzh {
         };
 
         using fm = FileMode;
-        using enc = Encoding;
         using om = OffsetMode;
 
     private:
@@ -40,9 +35,8 @@ export namespace jzh {
             int descriptor_ = -1;
         #endif
 
-        std::filesystem::path file_path_;
-        FileMode mode_;
-        Encoding encoding_;
+        std::filesystem::path file_path_ = std::filesystem::path();
+        FileMode mode_ = FileMode::read_write;
 
     protected:
         void write_to_file(const void* buffer, size_t size) const {
@@ -80,8 +74,69 @@ export namespace jzh {
         }
 
     public:
-        explicit FileIO(std::filesystem::path file_path, const FileMode mode = FileMode::read_write)
-            : file_path_(std::move(file_path)), mode_(mode), encoding_(Encoding::binary) {
+        FileIO() = default;
+
+        explicit FileIO(const std::filesystem::path &file_path, const FileMode mode = FileMode::read_write) {
+            open(file_path, mode);
+        }
+
+        FileIO(const FileIO&) = delete;
+        FileIO& operator=(const FileIO&) = delete;
+
+        FileIO(FileIO&& other) noexcept {
+            file_path_ = std::move(other.file_path_);
+            mode_ = other.mode_;
+
+            #if defined(_WIN32)
+                handle_ = other.handle_;
+                other.handle_ = INVALID_HANDLE_VALUE;
+            #else
+                descriptor_ = other.descriptor_;
+                other.descriptor_ = -1;
+            #endif
+        }
+
+        ~FileIO() noexcept { // NOLINT(modernize-use-equals-default)
+            if (is_open())
+                close();
+        }
+
+        FileIO& operator=(FileIO&& other) noexcept {
+            if (this == &other) return *this;
+            this->~FileIO();
+
+            handle_ = other.handle_;
+            file_path_ = std::move(other.file_path_);
+            mode_ = other.mode_;
+            #if defined(_WIN32)
+                other.handle_ = INVALID_HANDLE_VALUE;
+            #else
+                other.descriptor_ = -1;
+            #endif
+            return *this;
+        }
+
+        [[nodiscard]] FileMode get_mode() const noexcept {
+            return mode_;
+        }
+        [[nodiscard]] std::filesystem::path get_file_path() const noexcept {
+            return file_path_;
+        }
+
+        [[nodiscard]] bool is_readable() const noexcept {
+            return mode_ == FileMode::read || mode_ == FileMode::read_write;
+        }
+
+        [[nodiscard]] bool is_writable() const noexcept {
+            return mode_ == FileMode::write || mode_ == FileMode::append || mode_ == FileMode::read_write;
+        }
+
+        std::optional<std::string> open(const std::filesystem::path &file_path, const FileMode mode = FileMode::read_write) {
+            if (is_open()) {
+                return std::string("File is already open. Close it before opening a new one.");
+            }
+            this->file_path_ = file_path;
+            this->mode_ = mode;
 
             #if defined(_WIN32)
                 DWORD dwDesiredAccess = 0;
@@ -125,47 +180,19 @@ export namespace jzh {
                     throw std::system_error(errno, std::system_category(), "Failed to open file: " + file_path_.string());
                 }
             #endif
+            return std::nullopt;
         }
 
-        ~FileIO() {
-            if (!is_open()) return;
+        std::optional<std::string> close() noexcept {
+            if (!is_open()) {
+                return std::string("File is not open.");
+            };
             #if defined(_WIN32)
                 CloseHandle(handle_);
             #else
                 ::close(descriptor_);
             #endif
-        }
-
-        FileIO(const FileIO&) = delete;
-        FileIO& operator=(const FileIO&) = delete;
-
-        FileIO(FileIO&& other) noexcept {
-            handle_ = other.handle_;
-            file_path_ = std::move(other.file_path_);
-            mode_ = other.mode_;
-            encoding_ = other.encoding_;
-
-            #if defined(_WIN32)
-                other.handle_ = INVALID_HANDLE_VALUE;
-            #else
-                other.descriptor_ = -1;
-            #endif
-        }
-
-        FileIO& operator=(FileIO&& other) noexcept {
-            if (this == &other) return *this;
-            this->~FileIO();
-
-            handle_ = other.handle_;
-            file_path_ = std::move(other.file_path_);
-            mode_ = other.mode_;
-            encoding_ = other.encoding_;
-            #if defined(_WIN32)
-                other.handle_ = INVALID_HANDLE_VALUE;
-            #else
-                other.descriptor_ = -1;
-            #endif
-            return *this;
+            return std::nullopt;
         }
 
         void write(const std::byte& data) {
@@ -176,13 +203,13 @@ export namespace jzh {
             write_to_file(data.data(), data.size());
         }
 
-        [[nodiscard]] std::byte read() {
+        [[nodiscard]] std::byte read() { // NOLINT(readability-convert-member-functions-to-static)
             std::byte buffer{};
             if (const size_t bytes_read = read_from_file(&buffer, 1); bytes_read == 0) throw std::runtime_error("End of file reached");
             return buffer;
         }
 
-        [[nodiscard]] std::vector<std::byte> read(const size_t bytes_to_read) {
+        [[nodiscard]] std::vector<std::byte> read(const size_t bytes_to_read) { // NOLINT(readability-convert-member-functions-to-static)
             std::vector<std::byte> buffer(bytes_to_read);
             const size_t actual_bytes_read = read_from_file(buffer.data(), buffer.size());
             buffer.resize(actual_bytes_read);
