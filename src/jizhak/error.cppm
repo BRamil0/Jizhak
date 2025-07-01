@@ -11,6 +11,9 @@ inline constexpr bool dependent_false = false;
 export namespace jzh {
     enum struct JizhakErrorID {
         OK = 0,
+        buffer_is_empty,
+        incomplete_character,
+        max_size_file,
     };
 
     template <typename T> requires is_supported_enum<T>
