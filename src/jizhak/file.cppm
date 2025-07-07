@@ -7,11 +7,22 @@ import std;
 export import jizhak.io.file;
 export import jizhak.error;
 
+template <typename T>
+concept is_supported_string = requires(T t) {
+    { std::basic_string_view(t) } -> std::same_as<std::basic_string_view<typename decltype(std::basic_string_view(t))::value_type>>;
+    requires std::same_as<typename decltype(std::basic_string_view(t))::value_type, char> ||
+             std::same_as<typename decltype(std::basic_string_view(t))::value_type, wchar_t> ||
+             std::same_as<typename decltype(std::basic_string_view(t))::value_type, char8_t> ||
+             std::same_as<typename decltype(std::basic_string_view(t))::value_type, char16_t> ||
+             std::same_as<typename decltype(std::basic_string_view(t))::value_type, char32_t>;
+};
+
 namespace jzh {
     class File {
     public:
         using fm = FileIO::FileMode;
         using om = FileIO::OffsetMode;
+
     private:
         FileIO file_io{};
         std::vector<std::byte> byte_buffer {};
@@ -27,21 +38,21 @@ namespace jzh {
             return std::nullopt;
         }
 
-        void write_byts() {}
+        void write_byts(const std::vector<std::byte> &bytes_to_write) {
+            this->file_io.write(bytes_to_write);
+        }
 
         struct UtfAnalysisResult {
             size_t incomplete_bytes_at_end = 0; // Скільки байт в кінці буфера є частиною неповного символу
             size_t needed_bytes_to_complete = 0; // Скільки ще байт потрібно дочитати
         };
 
-        // Крок 2: Функція аналізу буфера
         UtfAnalysisResult analyze_buffer_completeness() const {
             if (byte_buffer.empty()) {
                 return {0, 0};
             }
 
             if (encoding == "UTF-8") {
-                // Логіка для UTF-8
                 size_t look_behind = 1;
                 while (look_behind <= byte_buffer.size() && look_behind <= 4) {
                     const auto b = static_cast<unsigned char>(byte_buffer[byte_buffer.size() - look_behind]);
@@ -79,7 +90,6 @@ namespace jzh {
             return {0, 0};
         }
 
-        // Крок 4: Декодування буфера байтів у внутрішній текстовий буфер (UTF-8)
         void decode_to_internal_buffer(size_t bytes_to_decode) {
             if (bytes_to_decode == 0) return;
 
@@ -99,7 +109,7 @@ namespace jzh {
                     std::locale file_locale = gen("." + encoding);
                     text_buffer += boost::locale::conv::to_utf<char>(byte_view.data(), byte_view.data() + byte_view.size(), file_locale);
                 }
-                // Видаляємо з буфера байти, які успішно сконвертували
+
                 byte_buffer.erase(byte_buffer.begin(), byte_buffer.begin() + bytes_to_decode);
             } catch(...) {
                 // Якщо декодування не вдалося, це помилка в даних файлу
@@ -107,6 +117,7 @@ namespace jzh {
                 throw std::runtime_error("Failed to decode file content, data may be corrupted.");
             }
         }
+
     public:
         class Iterator {
 
@@ -116,49 +127,49 @@ namespace jzh {
         explicit File(const std::filesystem::path& path, fm file_mode = fm::read_write)
             : file_io(path, file_mode) {}
 
-template <typename T>
+        File(const File&) = delete;
+        File(File&&) {}
+
+        File& operator=(const File&) = delete;
+        File& operator=(File&&) {}
+
+        virtual ~File() = default;
+
+
+        template <typename T> requires is_supported_string<T>
         T read(size_t chars_to_read) {
-            // Тимчасовий буфер для результату, який буде повернуто у форматі T
             T result_buffer;
 
-            // Основний цикл: працюємо, доки не накопичимо потрібну кількість символів
             while (boost::locale::conv::utf_to_utf<char32_t>(text_buffer).length() < chars_to_read) {
-                // Крок 1: Читаємо порцію байтів
                 if (file_io.tell() < file_io.size()) {
-                    byte_buffer = file_io.read(4096); // Читаємо в кінець буфера
+                    byte_buffer = file_io.read(4096);
                 }
 
-                // Крок 2: Аналізуємо, чи повний останній символ
                 UtfAnalysisResult analysis = analyze_buffer_completeness();
 
-                // Крок 3: Перевіряємо, чи можемо дочитати необхідні байти
+                // Перевіряємо, чи можемо дочитати необхідні байти
                 if (analysis.needed_bytes_to_complete > 0) {
                     size_t bytes_available_in_file = file_io.size() - file_io.tell();
 
                     if (bytes_available_in_file >= analysis.needed_bytes_to_complete) {
-                        // Крок 3.2: Так, можемо. Дочитуємо рівно стільки, скільки треба.
+                        // Так, можемо. Дочитуємо рівно стільки, скільки треба.
                         byte_buffer = file_io.read(analysis.needed_bytes_to_complete);
-                        analysis = {0, 0}; // Тепер буфер гарантовано повний
+                        analysis = {0, 0};
                     } else {
-                        // Крок 3.1: Ні, не можемо (кінець файлу). Відрізаємо хвіст.
-                        // Ці байти будуть проігноровані, бо утворюють неповний символ в кінці файлу.
+                        // Ні, не можемо (кінець файлу). Відрізаємо хвіст.
                     }
                 }
 
-                // Декодуємо все, окрім неповного хвоста
                 decode_to_internal_buffer(byte_buffer.size() - analysis.incomplete_bytes_at_end);
 
-                // Якщо ми в кінці файлу і більше нічого не можемо прочитати, виходимо
                 if (file_io.tell() == file_io.size() && byte_buffer.empty()) {
                     break;
                 }
             }
 
-            // Крок 5: Перекодовуємо з внутрішнього UTF-8 у потрібний користувачу формат T
             size_t available_chars = boost::locale::conv::utf_to_utf<char32_t>(text_buffer).length();
             size_t chars_to_process = std::min(available_chars, chars_to_read);
 
-            // Знаходимо позицію в байтах, яка відповідає потрібній кількості символів
             size_t byte_pos_to_cut = boost::locale::boundary::character(text_buffer.begin(), text_buffer.end(), chars_to_process).base() - text_buffer.begin();
 
             std::string_view view_to_convert(text_buffer.data(), byte_pos_to_cut);
@@ -166,7 +177,6 @@ template <typename T>
             if constexpr (std::is_same_v<T, std::string>) {
                 result_buffer.assign(view_to_convert);
             } else {
-                // Для std::wstring, std::u16string etc.
                 result_buffer = boost::locale::conv::utf_to_utf<typename T::value_type>(view_to_convert);
             }
 
@@ -175,7 +185,7 @@ template <typename T>
             return result_buffer;
         }
 
-        template <typename T>
+        template <typename T> requires is_supported_string<T>
         T read(size_t text_to_read, long long offset, om offset_mode = om::current) {
             byte_buffer.clear();
             text_buffer.clear();
@@ -183,14 +193,15 @@ template <typename T>
             return read<T>(text_to_read);
         }
 
-        [[nodiscard]] bool is_open() const {
-            return file_io.is_open();
-        }
-        [[nodiscard]] bool is_unicode() const {
-            return unicode;
+        template <typename T> requires is_supported_string<T>
+        std::optional<JizhakError> write(std::basic_string_view<T> text) {
+            return JizhakError(JizhakErrorID::pass);
         }
 
-        [[nodiscard]] size_t size_buffer() const {return byte_buffer.size() + text_buffer.size();}
+        [[nodiscard]] bool is_open() const {return file_io.is_open(); }
+        [[nodiscard]] bool is_unicode() const {return unicode; }
+
+        [[nodiscard]] size_t size_buffer() const {return byte_buffer.size() + text_buffer.size(); }
         [[nodiscard]] size_t size_file() const {return file_io.size(); }
     };
 }

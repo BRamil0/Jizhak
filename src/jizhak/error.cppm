@@ -11,6 +11,8 @@ inline constexpr bool dependent_false = false;
 export namespace jzh {
     enum struct JizhakErrorID {
         OK = 0,
+        pass,
+        null,
         buffer_is_empty,
         incomplete_character,
         max_size_file,
