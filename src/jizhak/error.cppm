@@ -16,6 +16,8 @@ export namespace jzh {
         buffer_is_empty,
         incomplete_character,
         max_size_file,
+        conversion_error,
+        generic_error,
     };
 
     template <typename T> requires is_supported_enum<T>

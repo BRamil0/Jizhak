@@ -24,7 +24,7 @@ namespace jzh {
         using om = FileIO::OffsetMode;
 
     private:
-        FileIO file_io{};
+        std::shared_ptr<FileIO> file_io{};
         std::vector<std::byte> byte_buffer {};
         std::string text_buffer {};
         std::string encoding {};
@@ -32,14 +32,14 @@ namespace jzh {
 
     protected:
         std::optional<JizhakError> read_byts(const size_t bytes_to_read = 4) {
-            if (file_io.tell() == file_io.size())
+            if (file_io->tell() == file_io->size())
                 return JizhakError(JizhakErrorID::max_size_file);
-            this->byte_buffer.append_range(file_io.read(bytes_to_read));
+            this->byte_buffer.append_range(file_io->read(bytes_to_read));
             return std::nullopt;
         }
 
         void write_byts(const std::vector<std::byte> &bytes_to_write) {
-            this->file_io.write(bytes_to_write);
+            this->file_io->write(bytes_to_write);
         }
 
         struct UtfAnalysisResult {
@@ -119,50 +119,43 @@ namespace jzh {
         }
 
     public:
-        class Iterator {
+        explicit File(const std::filesystem::path& path, fm file_mode = fm::read_write) {
+            this->file_io = std::make_shared<FileIO>(path, file_mode);
+        }
 
-        };
+        File(const File&) = default;
+        File(File&&) = default;
 
+        File& operator=(const File&) = default;
+        File& operator=(File&&) = default;
 
-        explicit File(const std::filesystem::path& path, fm file_mode = fm::read_write)
-            : file_io(path, file_mode) {}
-
-        File(const File&) = delete;
-        File(File&&) {}
-
-        File& operator=(const File&) = delete;
-        File& operator=(File&&) {}
-
-        virtual ~File() = default;
-
+        virtual ~File() noexcept = default;
 
         template <typename T> requires is_supported_string<T>
-        T read(size_t chars_to_read) {
+        T read(const size_t chars_to_read) {
             T result_buffer;
 
             while (boost::locale::conv::utf_to_utf<char32_t>(text_buffer).length() < chars_to_read) {
-                if (file_io.tell() < file_io.size()) {
-                    byte_buffer = file_io.read(4096);
+                if (file_io->tell() < file_io->size()) {
+                    this->read_byts(4096);
                 }
 
                 UtfAnalysisResult analysis = analyze_buffer_completeness();
 
                 // Перевіряємо, чи можемо дочитати необхідні байти
                 if (analysis.needed_bytes_to_complete > 0) {
-                    size_t bytes_available_in_file = file_io.size() - file_io.tell();
+                    size_t bytes_available_in_file = file_io->size() - file_io->tell();
 
                     if (bytes_available_in_file >= analysis.needed_bytes_to_complete) {
                         // Так, можемо. Дочитуємо рівно стільки, скільки треба.
-                        byte_buffer = file_io.read(analysis.needed_bytes_to_complete);
+                        this->read_byts(analysis.needed_bytes_to_complete);
                         analysis = {0, 0};
-                    } else {
-                        // Ні, не можемо (кінець файлу). Відрізаємо хвіст.
                     }
                 }
 
                 decode_to_internal_buffer(byte_buffer.size() - analysis.incomplete_bytes_at_end);
 
-                if (file_io.tell() == file_io.size() && byte_buffer.empty()) {
+                if (file_io->tell() == file_io->size() && byte_buffer.empty()) {
                     break;
                 }
             }
@@ -186,22 +179,107 @@ namespace jzh {
         }
 
         template <typename T> requires is_supported_string<T>
-        T read(size_t text_to_read, long long offset, om offset_mode = om::current) {
-            byte_buffer.clear();
-            text_buffer.clear();
-            file_io.seek(offset, offset_mode);
+        T read(const size_t text_to_read, long long offset, om offset_mode = om::current) {
+            this->seek(offset, offset_mode);
             return read<T>(text_to_read);
         }
 
+
         template <typename T> requires is_supported_string<T>
-        std::optional<JizhakError> write(std::basic_string_view<T> text) {
-            return JizhakError(JizhakErrorID::pass);
+        std::optional<JizhakError> write(const std::basic_string_view<T> &text) {
+            try {
+                std::vector<std::byte> bytes_to_write = encode_to_file_encoding(text);
+
+                this->write_byts(bytes_to_write);
+                return std::nullopt;
+            }
+            catch (const boost::locale::conv::conversion_error& e) {
+                return JizhakError(JizhakErrorID::conversion_error, e.what());
+            }
+            catch(const std::exception& e) {
+                return JizhakError(JizhakErrorID::generic_error, e.what());
+            }
         }
 
-        [[nodiscard]] bool is_open() const {return file_io.is_open(); }
+        template <typename T> requires is_supported_string<T>
+        std::optional<JizhakError> write(const std::basic_string_view<T> &text, long long offset, om offset_mode = om::current) {
+            this->seek(offset, offset_mode);
+            return write<T>(text);
+        }
+
+
+        std::vector<std::byte> byte_read(const size_t bytes_to_read) {
+            this->byte_buffer.clear();
+            this->read_byts(bytes_to_read);
+            return this->byte_buffer;
+        }
+
+        void byte_write(const std::vector<std::byte> &bytes) {
+            this->write_byts(bytes);
+        }
+
+
+        [[nodiscard]] bool is_open() const {return file_io->is_open(); }
         [[nodiscard]] bool is_unicode() const {return unicode; }
 
         [[nodiscard]] size_t size_buffer() const {return byte_buffer.size() + text_buffer.size(); }
-        [[nodiscard]] size_t size_file() const {return file_io.size(); }
+        [[nodiscard]] size_t size_file() const {return file_io->size(); }
+
+        [[nodiscard]] long long tell() const {return file_io->tell(); }
+        void seek(long long offset, om offset_mode = om::current) {
+            this->byte_buffer.clear();
+            this->text_buffer.clear();
+            file_io->seek(offset, offset_mode);
+        }
+
+        class Iterator {
+        private:
+            File &file;
+            int jump;
+        public:
+            Iterator(File &file, int jump = 4)
+                : file(file), jump(jump) {}
+
+            Iterator(File &file, long long offset, om offset_mode = om::begin, int jump = 4)
+            : file(file), jump(jump) {
+                file.seek(offset, offset_mode);
+            }
+
+            template<typename T>
+            T& operator*() const {
+                return file.read<T>(jump);
+            }
+            template<typename T>
+            T* operator->() const {
+                return file.read<T>(jump);
+            }
+
+            Iterator& operator++() {
+                this->file.seek(jump);
+                return *this;
+            }
+            Iterator operator++(int) {
+                Iterator tmp = *this;
+                this->file.seek(jump);
+                return tmp;
+            }
+
+            Iterator& operator--() {
+                this->file.seek(0 - jump);
+                return *this;
+            }
+            Iterator operator--(int) {
+                Iterator tmp = *this;
+                this->file.seek(0 - jump);
+                return tmp;
+            }
+
+            // bool operator==(Iterator& other) = default;
+            // bool operator<=>(Iterator& other) = default;
+        };
+
+        // Iterator begin(jump) {
+        //     return Iterator(*this);
+        // }
     };
 }
