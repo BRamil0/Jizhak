@@ -232,54 +232,60 @@ namespace jzh {
             file_io->seek(offset, offset_mode);
         }
 
-        class Iterator {
-        private:
-            File &file;
-            int jump;
-        public:
-            Iterator(File &file, int jump = 4)
-                : file(file), jump(jump) {}
-
-            Iterator(File &file, long long offset, om offset_mode = om::begin, int jump = 4)
-            : file(file), jump(jump) {
-                file.seek(offset, offset_mode);
-            }
-
-            template<typename T>
-            T& operator*() const {
-                return file.read<T>(jump);
-            }
-            template<typename T>
-            T* operator->() const {
-                return file.read<T>(jump);
-            }
-
-            Iterator& operator++() {
-                this->file.seek(jump);
-                return *this;
-            }
-            Iterator operator++(int) {
-                Iterator tmp = *this;
-                this->file.seek(jump);
-                return tmp;
-            }
-
-            Iterator& operator--() {
-                this->file.seek(0 - jump);
-                return *this;
-            }
-            Iterator operator--(int) {
-                Iterator tmp = *this;
-                this->file.seek(0 - jump);
-                return tmp;
-            }
-
-            // bool operator==(Iterator& other) = default;
-            // bool operator<=>(Iterator& other) = default;
-        };
-
-        // Iterator begin(jump) {
-        //     return Iterator(*this);
-        // }
-    };
+    //     class Iterator {
+    //     private:
+    //         File &file;
+    //         int jump;
+    //         long long offset;
+    //     public:
+    //         Iterator(File &file, int jump = 4)
+    //             : file(file), jump(jump) {
+    //             offset = this->file.tell();
+    //         }
+    //
+    //         Iterator(File &file, long long offset, int jump = 4)
+    //         : file(file), offset(offset), jump(jump) {}
+    //
+    //         template<typename T>
+    //         T& operator*() const {
+    //             if (offset - jump == file.tell())
+    //                 return file.read<T>(jump);
+    //             return file.read<T>(jump, offset, om::begin);
+    //         }
+    //
+    //         template<typename T>
+    //         T* operator->() const {
+    //             if (offset - jump == file.tell())
+    //                 return file.read<T>(jump);
+    //             return file.read<T>(jump, offset, om::begin);
+    //         }
+    //
+    //         Iterator& operator++() {
+    //             this->offset += jump;
+    //             return *this;
+    //         }
+    //         Iterator operator++(int) {
+    //             Iterator tmp = *this;
+    //             this->offset += jump;
+    //             return tmp;
+    //         }
+    //
+    //         Iterator& operator--() {
+    //             this->offset -= jump;
+    //             return *this;
+    //         }
+    //         Iterator operator--(int) {
+    //             Iterator tmp = *this;
+    //             this->offset -= jump;
+    //             return tmp;
+    //         }
+    //
+    //         // bool operator==(Iterator& other) = default;
+    //         // bool operator<=>(Iterator& other) = default;
+    //     };
+    //
+    //     // Iterator begin(jump) {
+    //     //     return Iterator(*this);
+    //     // }
+    // };
 }
