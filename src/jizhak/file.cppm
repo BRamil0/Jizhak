@@ -32,7 +32,7 @@ namespace jzh {
 
     protected:
         std::optional<JizhakError> read_byts(const size_t bytes_to_read = 4) {
-            if (file_io->tell() == file_io->size())
+            if (file_io->tell() <= file_io->size())
                 return JizhakError(JizhakErrorID::max_size_file);
             this->byte_buffer.append_range(file_io->read(bytes_to_read));
             return std::nullopt;
@@ -47,9 +47,9 @@ namespace jzh {
             size_t needed_bytes_to_complete = 0; // Скільки ще байт потрібно дочитати
         };
 
-        UtfAnalysisResult analyze_buffer_completeness() const {
+        [[nodiscard]] UtfAnalysisResult analyze_buffer_completeness() const {
             if (byte_buffer.empty()) {
-                return {0, 0};
+                return {.incomplete_bytes_at_end=0, .needed_bytes_to_complete=0};
             }
 
             if (encoding == "UTF-8") {
