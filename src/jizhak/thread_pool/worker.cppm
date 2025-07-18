@@ -19,7 +19,9 @@ export namespace jzh {
 
         std::weak_ptr<ThreadPoolManager> tpm{};
 
+    protected:
         void run_loop(std::stop_token token);
+
     public:
         Worker() = delete;
         Worker(const Worker&) = delete;
