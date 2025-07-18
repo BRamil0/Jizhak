@@ -3,9 +3,11 @@ export module jizhak.thread_pool.worker;
 export import jizhak.thread_pool.task;
 import std;
 
-export namespace jzh {
+namespace jzh {
     class ThreadPoolManager;
+} // namespace jzh
 
+export namespace jzh {
     class Worker {
     private:
         std::jthread thread;
@@ -17,24 +19,7 @@ export namespace jzh {
 
         std::weak_ptr<ThreadPoolManager> tpm{};
 
-        void run_loop(std::stop_token token) {
-            while (!token.stop_requested()) {
-                Task task_to_run;
-                {
-                    std::unique_lock lock(queue_mutex);
-                    cv.wait(lock, [this, &token] { return !tasks.empty() || token.stop_requested(); });
-
-                    if (token.stop_requested()) return;
-
-                    task_to_run = std::move(tasks.front());
-                    tasks.pop_front();
-                }
-
-                if (task_to_run.function) {
-                    task_to_run();
-                }
-            }
-        }
+        void run_loop(std::stop_token token);
     public:
         Worker() = delete;
         Worker(const Worker&) = delete;
@@ -47,27 +32,12 @@ export namespace jzh {
 
         explicit Worker(const std::weak_ptr<ThreadPoolManager> &new_tpm) : tpm(new_tpm) {}
 
-        void start() {
-            this->thread = std::jthread(&Worker::run_loop, this);
-            this->id = thread.get_id();
-        }
+        void start();
 
-        void add_task(Task new_task) {
-            {
-                std::scoped_lock lock(queue_mutex);
-                tasks.push_back(std::move(new_task));
-            }
-            cv.notify_one();
-        }
+        void add_task(Task new_task);
 
-        [[nodiscard]] size_t size() const {
-            std::scoped_lock lock(queue_mutex);
-            return tasks.size();
-        }
+        [[nodiscard]] size_t size() const;
 
-        [[nodiscard]] bool empty() const {
-            std::scoped_lock lock(queue_mutex);
-            return tasks.empty();
-        }
+        [[nodiscard]] bool empty() const;
     };
 } // namespace jzh
