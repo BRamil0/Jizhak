@@ -30,7 +30,7 @@ export namespace jzh {
         Worker& operator=(const Worker&) = delete;
         Worker& operator=(Worker&&) = delete;
 
-        ~Worker() = default;
+        virtual ~Worker() = default;
 
         explicit Worker(const std::weak_ptr<ThreadPoolManager> &new_tpm) : tpm(new_tpm) {}
 
