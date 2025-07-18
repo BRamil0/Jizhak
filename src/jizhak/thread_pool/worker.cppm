@@ -24,13 +24,15 @@ export namespace jzh {
                     std::unique_lock lock(queue_mutex);
                     cv.wait(lock, [this, &token] { return !tasks.empty() || token.stop_requested(); });
 
+                    if (token.stop_requested()) return;
+
                     task_to_run = std::move(tasks.front());
                     tasks.pop_front();
                 }
 
                 if (task_to_run.function) {
                     task_to_run();
-                };
+                }
             }
         }
     public:
@@ -58,7 +60,14 @@ export namespace jzh {
             cv.notify_one();
         }
 
-        [[nodiscard]] size_t size() const {return tasks.size();}
-        [[nodiscard]] bool empty() const {return tasks.empty();}
+        [[nodiscard]] size_t size() const {
+            std::scoped_lock lock(queue_mutex);
+            return tasks.size();
+        }
+
+        [[nodiscard]] bool empty() const {
+            std::scoped_lock lock(queue_mutex);
+            return tasks.empty();
+        }
     };
 } // namespace jzh
