@@ -31,4 +31,9 @@ export namespace jzh {
         int priority{};
         std::chrono::seconds time_out{};
     };
+
+    struct WorkerStats {
+        std::atomic<size_t> total_tasks = 0;
+        std::atomic<size_t> async_tasks = 0;
+    };
 } // namespace jzh
