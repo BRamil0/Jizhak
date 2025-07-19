@@ -4,9 +4,10 @@ import jizhak.error;
 
 export namespace jzh {
     struct Task {
+        using id_t = unsigned long long;
         using Function = std::function<void()>;
 
-        unsigned long long id{};
+        id_t id{};
         Function function = nullptr;
 
         std::chrono::seconds time_out = std::chrono::seconds::zero();
@@ -15,7 +16,7 @@ export namespace jzh {
 
         Task() = default;
 
-        explicit Task(unsigned long long id, Function new_func, bool is_async = false, std::chrono::seconds time_out = std::chrono::seconds(0), long long priority = 0)
+        explicit Task(id_t id, Function new_func, bool is_async = false, std::chrono::seconds time_out = std::chrono::seconds(0), long long priority = 0)
             : id(id), function(std::move(new_func)), time_out(time_out), priority(priority), is_async(is_async) {}
 
         std::optional<JizhakError> operator()() { // NOLINT(readability-make-member-function-const)
@@ -26,7 +27,7 @@ export namespace jzh {
     };
 
     struct TaskInfo {
-        unsigned long long id{};
+        Task::id_t id{};
         bool is_async{};
         int priority{};
         std::chrono::seconds time_out{};
