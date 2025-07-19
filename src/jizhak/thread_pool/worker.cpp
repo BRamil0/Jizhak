@@ -24,11 +24,8 @@ namespace jzh {
         }
     }
 
-    void Worker::start() {
-        this->thread = std::jthread([this](std::stop_token token) {
-            this->run_loop(token);
-        });
-
+    void Worker::start(std::function<void(std::stop_token)> work_function) {
+        this->thread = std::jthread(std::move(work_function));
         this->id = thread.get_id();
     }
 

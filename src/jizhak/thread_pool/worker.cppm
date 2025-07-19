@@ -3,10 +3,6 @@ export module jizhak.thread_pool.worker;
 export import jizhak.thread_pool.task;
 import std;
 
-namespace jzh {
-    class ThreadPoolManager;
-} // namespace jzh
-
 export namespace jzh {
     class Worker {
     private:
@@ -16,14 +12,11 @@ export namespace jzh {
         std::deque<Task> tasks{};
         mutable std::mutex queue_mutex{};
         std::condition_variable cv{};
-
-        std::weak_ptr<ThreadPoolManager> tpm{};
-
     protected:
         void run_loop(std::stop_token token);
 
     public:
-        Worker() = delete;
+        Worker() = default;
         Worker(const Worker&) = delete;
         Worker(Worker&&) = delete;
 
@@ -32,9 +25,7 @@ export namespace jzh {
 
         virtual ~Worker() = default;
 
-        explicit Worker(const std::weak_ptr<ThreadPoolManager> &new_tpm) : tpm(new_tpm) {}
-
-        void start();
+        void start(std::function<void(std::stop_token)> work_function);
 
         void add_task(Task new_task);
 
