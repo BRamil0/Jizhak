@@ -1,6 +1,7 @@
 export module jizhak.thread_pool.tpm;
 import std;
 
+import jizhak.thread_pool.tpm_base;
 export import jizhak.thread_pool.task;
 export import jizhak.thread_pool.worker;
 export import jizhak.error;
@@ -24,7 +25,7 @@ concept is_supported_worker = requires(TWorker worker, jzh::Task task) {
 export namespace jzh {
     template <template <typename...> typename TContainer = std::vector, typename TWorker = Worker>
     requires (is_supported_container<TContainer, std::unique_ptr<TWorker>> && is_supported_worker<TWorker>)
-    class ThreadPoolManager {
+    class ThreadPoolManager : protected ThreadPoolManagerBase {
     public:
         friend class BaseWorker;
 
@@ -57,10 +58,12 @@ export namespace jzh {
         OptionalError delete_task(Task::id_t task_id); // beta
         OptionalError delete_task(Task::id_t task_id, std::jthread::id thread_id); // beta
 
-        OptionalError task_completed(Task::id_t task_id, std::jthread::id thread_id);
-        OptionalError notify_steal_task(Task::id_t task_id, std::jthread::id to_thread_id, std::jthread::id from_thread_id);
+        OptionalError task_completed(Task::id_t task_id, std::jthread::id thread_id) override;
+        OptionalError notify_steal_task(Task::id_t task_id, std::jthread::id to_thread_id, std::jthread::id from_thread_id) override;
 
-        TWorker* get_worker_by_index(size_t index);
+        TWorker* get_worker_by_index(size_t index) override;
+
+        size_t __number_workers() override;
 
     public:
         explicit ThreadPoolManager() = default;
