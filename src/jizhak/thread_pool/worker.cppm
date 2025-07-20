@@ -10,18 +10,17 @@ export namespace jzh {
     public:
         using OptionalError = std::optional<JizhakError>;
     private:
-        std::jthread thread;
-        std::jthread::id id;
+        std::jthread thread{};
+        std::jthread::id id{};
 
-        std::deque<Task> tasks{};
-        mutable std::mutex queue_mutex{};
         std::condition_variable cv{};
     protected:
+        std::deque<Task> tasks{};
+        mutable std::mutex queue_mutex{};
+
         void run_loop(std::stop_token token);
 
         virtual OptionalError steal_task();
-
-        virtual std::optional<std::deque<Task>> yield_half_of_tasks();
 
     public:
         BaseWorker() = default;
@@ -37,10 +36,13 @@ export namespace jzh {
 
         void add_task(Task new_task);
 
+        virtual std::optional<std::deque<Task>> yield_half_of_tasks();
+
         [[nodiscard]] size_t size() const;
 
         [[nodiscard]] bool empty() const;
 
         [[nodiscard]] std::jthread::id get_id() const;
+
     };
 } // namespace jzh

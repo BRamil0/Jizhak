@@ -10,6 +10,10 @@ namespace jzh {
     using OptionalError = BaseWorker::OptionalError;
 
     void BaseWorker::run_loop(std::stop_token token) {
+        auto locked_tpm = this_thread::get_tpm().lock();
+        if (!locked_tpm) return;
+        ThreadPoolManagerBase* tpm = locked_tpm.get();
+
         while (!token.stop_requested()) {
             Task task_to_run;
             {
@@ -19,7 +23,7 @@ namespace jzh {
                 if (token.stop_requested()) return;
 
                 if (tasks.empty())
-                    if (steal_task())
+                    if (!steal_task())
                         continue;
 
                 task_to_run = std::move(tasks.front());
@@ -28,6 +32,7 @@ namespace jzh {
 
             if (task_to_run.function) {
                 task_to_run();
+                tpm->task_completed(task_to_run.id, this->id);
             }
         }
     }
@@ -35,6 +40,19 @@ namespace jzh {
     OptionalError BaseWorker::steal_task() {
         return std::nullopt;
     };
+
+    void BaseWorker::start(std::function<void(std::stop_token)> work_function) {
+        this->thread = std::jthread(std::move(work_function));
+        this->id = thread.get_id();
+    }
+
+    void BaseWorker::add_task(Task new_task) {
+        {
+            std::scoped_lock lock(queue_mutex);
+            tasks.push_back(std::move(new_task));
+        }
+        cv.notify_one();
+    }
 
     std::optional<std::deque<Task>> BaseWorker:: yield_half_of_tasks() {
         std::scoped_lock lock(queue_mutex);
@@ -58,19 +76,6 @@ namespace jzh {
         return stolen_tasks;
     }
 
-    void BaseWorker::start(std::function<void(std::stop_token)> work_function) {
-        this->thread = std::jthread(std::move(work_function));
-        this->id = thread.get_id();
-    }
-
-    void BaseWorker::add_task(Task new_task) {
-        {
-            std::scoped_lock lock(queue_mutex);
-            tasks.push_back(std::move(new_task));
-        }
-        cv.notify_one();
-    }
-
     size_t BaseWorker::size() const {
         std::scoped_lock lock(queue_mutex);
         return tasks.size();
@@ -80,6 +85,7 @@ namespace jzh {
         std::scoped_lock lock(queue_mutex);
         return tasks.empty();
     }
+
     std::thread::id BaseWorker::get_id() const {
         return this->id;
     }
