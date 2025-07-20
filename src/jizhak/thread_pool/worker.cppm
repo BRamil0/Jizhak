@@ -1,10 +1,14 @@
 export module jizhak.thread_pool.worker;
 
 export import jizhak.thread_pool.task;
+export import jizhak.error;
+
 import std;
 
 export namespace jzh {
-    class Worker {
+    class BaseWorker {
+    public:
+        using OptionalError = std::optional<JizhakError>;
     private:
         std::jthread thread;
         std::jthread::id id;
@@ -15,15 +19,19 @@ export namespace jzh {
     protected:
         void run_loop(std::stop_token token);
 
+        virtual OptionalError steal_task();
+
+        virtual std::optional<std::deque<Task>> yield_half_of_tasks();
+
     public:
-        Worker() = default;
-        Worker(const Worker&) = delete;
-        Worker(Worker&&) = delete;
+        BaseWorker() = default;
+        BaseWorker(const BaseWorker&) = delete;
+        BaseWorker(BaseWorker&&) = delete;
 
-        Worker& operator=(const Worker&) = delete;
-        Worker& operator=(Worker&&) = delete;
+        BaseWorker& operator=(const BaseWorker&) = delete;
+        BaseWorker& operator=(BaseWorker&&) = delete;
 
-        virtual ~Worker() = default;
+        virtual ~BaseWorker() = default;
 
         void start(std::function<void(std::stop_token)> work_function);
 
@@ -32,5 +40,7 @@ export namespace jzh {
         [[nodiscard]] size_t size() const;
 
         [[nodiscard]] bool empty() const;
+
+        [[nodiscard]] std::jthread::id get_id() const;
     };
 } // namespace jzh
