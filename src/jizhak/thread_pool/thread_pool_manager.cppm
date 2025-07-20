@@ -26,7 +26,7 @@ export namespace jzh {
     requires (is_supported_container<TContainer, std::unique_ptr<TWorker>> && is_supported_worker<TWorker>)
     class ThreadPoolManager {
     public:
-        friend class Worker;
+        friend class BaseWorker;
 
         using Workers = TContainer<std::unique_ptr<TWorker>>;
         using TableWorker = std::unordered_map<std::jthread::id, WorkerStats>;
@@ -60,6 +60,7 @@ export namespace jzh {
         OptionalError task_completed(Task::id_t task_id, std::jthread::id thread_id);
         OptionalError notify_steal_task(Task::id_t task_id, std::jthread::id to_thread_id, std::jthread::id from_thread_id);
 
+        TWorker* get_worker_by_index(size_t index);
 
     public:
         explicit ThreadPoolManager() = default;
