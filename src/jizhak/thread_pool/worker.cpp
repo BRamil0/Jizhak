@@ -22,9 +22,14 @@ namespace jzh {
 
                 if (token.stop_requested()) return;
 
-                if (tasks.empty())
-                    if (!steal_task())
-                        continue;
+                if (tasks.empty()) {
+                    lock.unlock();
+
+                    if (!steal_task()) continue;
+
+                    lock.lock();
+                    continue;
+                }
 
                 task_to_run = std::move(tasks.front());
                 tasks.pop_front();
@@ -88,5 +93,40 @@ namespace jzh {
 
     std::thread::id BaseWorker::get_id() const {
         return this->id;
+    }
+
+    OptionalError Worker::steal_task() {
+        auto locked_tpm = this_thread::get_tpm().lock();
+        if (!locked_tpm) return std::nullopt;
+        ThreadPoolManagerBase* tpm = locked_tpm.get();
+
+        size_t pool_size = tpm->__number_workers();
+        if (pool_size <= 1) return std::nullopt;
+        std::uniform_int_distribution<size_t> distribution(0, pool_size - 1);
+
+        for (size_t _ : std::ranges::iota_view{static_cast<size_t>(0), pool_size}) {
+            size_t victim_index = distribution(random_generator_);
+
+            BaseWorker* base_victim = tpm->get_worker_by_index(victim_index);
+            if (base_victim && base_victim->get_id() != this->get_id()) {
+                if (auto stolen_tasks_opt = base_victim->yield_half_of_tasks()) {
+                    if (!stolen_tasks_opt->empty()) {
+                        const auto victim_id = base_victim->get_id();
+
+                        for (const auto& task : *stolen_tasks_opt)
+                            tpm->notify_steal_task(task.id, this->get_id(), victim_id);
+
+                        {
+                            std::scoped_lock lock(this->queue_mutex);
+                            for (auto& task : *stolen_tasks_opt)
+                                this->tasks.push_back(std::move(task));
+                        }
+                        return std::nullopt;
+                    }
+                }
+            }
+        }
+
+        return JizhakError{JizhakErrorID::cannot_steal_task};
     }
 } // namespace jzh

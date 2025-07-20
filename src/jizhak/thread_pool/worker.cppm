@@ -45,4 +45,14 @@ export namespace jzh {
         [[nodiscard]] std::jthread::id get_id() const;
 
     };
+
+    class Worker : public BaseWorker {
+    private:
+        mutable std::mt19937 random_generator_{};
+
+    protected:
+        OptionalError steal_task() override;
+        explicit Worker() : BaseWorker(), random_generator_(std::random_device{}()) {}
+
+    };
 } // namespace jzh
