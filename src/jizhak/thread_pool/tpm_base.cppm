@@ -1,12 +1,10 @@
 export module jizhak.thread_pool.tpm_base;
 
 export import jizhak.error;
-import std;
 
-namespace jzh {
-    class BaseWorker;
-    struct Task;
-} // namespace jzh
+import jizhak.thread_pool.worker;
+
+import std;
 
 export namespace jzh {
     class ThreadPoolManagerBase {
