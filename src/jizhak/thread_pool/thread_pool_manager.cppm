@@ -59,7 +59,9 @@ export namespace jzh {
         OptionalError delete_task(Task::id_t task_id, std::jthread::id thread_id); // beta
 
         OptionalError task_completed(Task::id_t task_id, std::jthread::id thread_id) override;
-        OptionalError notify_steal_task(Task::id_t task_id, std::jthread::id to_thread_id, std::jthread::id from_thread_id) override;
+        OptionalError notify_steal_task(Task::id_t task_id,
+                                        std::jthread::id to_thread_id,
+                                        std::jthread::id from_thread_id) override;
 
         TWorker* get_worker_by_index(size_t index) override;
 
@@ -75,7 +77,7 @@ export namespace jzh {
         ThreadPoolManager& operator=(const ThreadPoolManager&) = delete;
         ThreadPoolManager& operator=(ThreadPoolManager&&) = default;
 
-        ~ThreadPoolManager();
+        ~ThreadPoolManager() override;
 
 
         std::expected<const WorkerStats&, JizhakError> operator[](std::jthread::id thread_id) const;
@@ -83,14 +85,16 @@ export namespace jzh {
 
 
         template <typename F, typename... Args> // Метод для додавання функцій.
-        std::expected<std::tuple<std::future<std::invoke_result_t<F, Args...>>, Task::id_t>, JizhakError> operator()(F&& func, Args&&... args);
+        std::expected<std::tuple<std::future<std::invoke_result_t<F, Args...>>, Task::id_t>, JizhakError>
+        operator()(F&& func, Args&&... args);
 
         std::expected<std::jthread::id, JizhakError> add_worker(unsigned int quantity = 1);
         OptionalError remove_worker(unsigned int quantity = 1); // beta
         OptionalError remove_worker(std::jthread::id thread_id); // beta
 
         template <typename F, typename... Args>
-        std::expected<std::tuple<std::future<std::invoke_result_t<F, Args...>>, Task::id_t>, JizhakError> add_task(F&& func, Args&&... args);
+        std::expected<std::tuple<std::future<std::invoke_result_t<F, Args...>>, Task::id_t>, JizhakError>
+        add_task(F&& func, Args&&... args);
 
         OptionalError remove_task(Task::id_t task_id); // beta
         OptionalError remove_task(Task::id_t task_id, std::jthread::id thread_id); // beta
