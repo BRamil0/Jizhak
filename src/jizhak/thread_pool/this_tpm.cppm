@@ -9,9 +9,11 @@ namespace jzh::this_thread {
 }
 
 export namespace jzh::this_thread {
+    /// **Тільки для jzh::ThreadPoolManager**
     inline void set_tpm(const std::weak_ptr<ThreadPoolManagerBase>& tpm) {
         current_tpm = tpm;
     }
+
 
     [[nodiscard]] inline std::weak_ptr<ThreadPoolManagerBase> get_tpm() {
         return current_tpm;
