@@ -9,6 +9,7 @@ import jizhak.thread_pool.task;
 namespace jzh {
     using OptionalError = BaseWorker::OptionalError;
 
+    // BaseWorker: protected
     void BaseWorker::run_loop(std::stop_token token) {
         auto locked_tpm = this_thread::get_tpm().lock();
         if (!locked_tpm) return;
@@ -46,6 +47,7 @@ namespace jzh {
         return std::nullopt;
     };
 
+    // BaseWorker: public
     void BaseWorker::start(std::function<void(std::stop_token)> work_function) {
         this->thread = std::jthread(std::move(work_function));
         this->id = thread.get_id();
@@ -59,7 +61,7 @@ namespace jzh {
         cv.notify_one();
     }
 
-    std::optional<std::deque<Task>> BaseWorker:: yield_half_of_tasks() {
+    std::optional<std::deque<Task>> BaseWorker::yield_half_of_tasks() {
         std::scoped_lock lock(queue_mutex);
 
         size_t tasks_to_steal = tasks.size() / 2;
@@ -95,6 +97,7 @@ namespace jzh {
         return this->id;
     }
 
+    // Worker: protected
     OptionalError Worker::steal_task() {
         auto locked_tpm = this_thread::get_tpm().lock();
         if (!locked_tpm) return std::nullopt;
