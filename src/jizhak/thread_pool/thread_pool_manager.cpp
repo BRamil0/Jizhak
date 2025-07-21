@@ -5,7 +5,7 @@ import jizhak.thread_pool.task;
 import jizhak.thread_pool.worker;
 
 namespace jzh {
-    // protected
+    // ThreadPoolManager: protected
     template <template <typename...> typename TContainer, typename TWorker>
     requires (is_supported_container<TContainer, std::unique_ptr<TWorker>> && is_supported_worker<TWorker>)
     std::expected<std::jthread::id, JizhakError> ThreadPoolManager<TContainer, TWorker>::create_worker(unsigned int quantity) {}
@@ -48,7 +48,7 @@ namespace jzh {
     requires (is_supported_container<TContainer, std::unique_ptr<TWorker>> && is_supported_worker<TWorker>)
     size_t ThreadPoolManager<TContainer, TWorker>::__number_workers() override {}
 
-    // public
+    // ThreadPoolManager: public
     template <template <typename...> typename TContainer, typename TWorker>
     requires (is_supported_container<TContainer, std::unique_ptr<TWorker>> && is_supported_worker<TWorker>)
     ThreadPoolManager<TContainer, TWorker>::ThreadPoolManager(unsigned int quantity) {}
