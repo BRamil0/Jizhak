@@ -37,4 +37,14 @@ export namespace jzh {
         std::atomic<size_t> total_tasks = 0;
         std::atomic<size_t> async_tasks = 0;
     };
+
+    struct SynchronizedWorkerStats {
+        WorkerStats stats{};
+        mutable std::mutex mtx{};
+    };
+
+    struct SynchronizedTaskInfos {
+        std::vector<TaskInfo> infos{};
+        mutable std::mutex mtx{};
+    };
 } // namespace jzh
