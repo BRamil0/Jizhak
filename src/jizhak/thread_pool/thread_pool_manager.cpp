@@ -68,11 +68,17 @@ namespace jzh {
 
     template <template <typename...> typename TContainer, typename TWorker>
     requires (is_supported_container<TContainer, std::unique_ptr<TWorker>> && is_supported_worker<TWorker>)
-    std::expected<const WorkerStats&, JizhakError> ThreadPoolManager<TContainer, TWorker>::operator[](std::jthread::id thread_id) const {}
+    std::expected<const WorkerStats&, JizhakError>
+    ThreadPoolManager<TContainer, TWorker>::operator[](std::jthread::id thread_id) const {
+        return this->search_worker_for(thread_id);
+    }
 
     template <template <typename...> typename TContainer, typename TWorker>
     requires (is_supported_container<TContainer, std::unique_ptr<TWorker>> && is_supported_worker<TWorker>)
-    std::expected<const TaskInfo&, JizhakError> ThreadPoolManager<TContainer, TWorker>::operator[](Task::id_t task_id) const {}
+    std::expected<const TaskInfo, JizhakError>
+    ThreadPoolManager<TContainer, TWorker>::operator[](Task::id_t task_id) const {
+        return this->search_task_for(task_id);
+    }
 
     template <template <typename...> typename TContainer, typename TWorker>
     requires (is_supported_container<TContainer, std::unique_ptr<TWorker>> && is_supported_worker<TWorker>)
@@ -83,15 +89,18 @@ namespace jzh {
 
     template <template <typename...> typename TContainer, typename TWorker>
     requires (is_supported_container<TContainer, std::unique_ptr<TWorker>> && is_supported_worker<TWorker>)
-    std::expected<std::jthread::id, JizhakError> ThreadPoolManager<TContainer, TWorker>::add_worker(unsigned int quantity) {}
+    std::expected<std::jthread::id, JizhakError>
+    ThreadPoolManager<TContainer, TWorker>::add_worker(unsigned int quantity) {}
 
     template <template <typename...> typename TContainer, typename TWorker>
     requires (is_supported_container<TContainer, std::unique_ptr<TWorker>> && is_supported_worker<TWorker>)
-    ThreadPoolManager<TContainer, TWorker>::OptionalError ThreadPoolManager<TContainer, TWorker>::remove_worker(unsigned int quantity) {}
+    ThreadPoolManager<TContainer, TWorker>::OptionalError
+    ThreadPoolManager<TContainer, TWorker>::remove_worker(unsigned int quantity) {}
 
     template <template <typename...> typename TContainer, typename TWorker>
     requires (is_supported_container<TContainer, std::unique_ptr<TWorker>> && is_supported_worker<TWorker>)
-    ThreadPoolManager<TContainer, TWorker>::OptionalError ThreadPoolManager<TContainer, TWorker>::remove_worker(std::jthread::id thread_id) {}
+    ThreadPoolManager<TContainer, TWorker>::OptionalError
+    ThreadPoolManager<TContainer, TWorker>::remove_worker(std::jthread::id thread_id) {}
 
 
     template <template <typename...> typename TContainer, typename TWorker>
@@ -102,11 +111,13 @@ namespace jzh {
 
     template <template <typename...> typename TContainer, typename TWorker>
     requires (is_supported_container<TContainer, std::unique_ptr<TWorker>> && is_supported_worker<TWorker>)
-    ThreadPoolManager<TContainer, TWorker>::OptionalError ThreadPoolManager<TContainer, TWorker>::remove_task(Task::id_t task_id) {}
+    ThreadPoolManager<TContainer, TWorker>::OptionalError
+    ThreadPoolManager<TContainer, TWorker>::remove_task(Task::id_t task_id) {}
 
     template <template <typename...> typename TContainer, typename TWorker>
     requires (is_supported_container<TContainer, std::unique_ptr<TWorker>> && is_supported_worker<TWorker>)
-    ThreadPoolManager<TContainer, TWorker>::OptionalError ThreadPoolManager<TContainer, TWorker>::remove_task(Task::id_t task_id, std::jthread::id thread_id) {}
+    ThreadPoolManager<TContainer, TWorker>::OptionalError
+    ThreadPoolManager<TContainer, TWorker>::remove_task(Task::id_t task_id, std::jthread::id thread_id) {}
 
     template <template <typename...> typename TContainer, typename TWorker>
     requires (is_supported_container<TContainer, std::unique_ptr<TWorker>> && is_supported_worker<TWorker>)
@@ -141,19 +152,50 @@ namespace jzh {
 
     template <template <typename...> typename TContainer, typename TWorker>
     requires (is_supported_container<TContainer, std::unique_ptr<TWorker>> && is_supported_worker<TWorker>)
-    std::expected<const typename ThreadPoolManager<TContainer, TWorker>::TableWorker&, JizhakError> ThreadPoolManager<TContainer, TWorker>::get_table_worker() {}
+    std::expected<const typename ThreadPoolManager<TContainer, TWorker>::TableWorker, JizhakError>
+    ThreadPoolManager<TContainer, TWorker>::get_table_worker() {
+        return this->table_worker_stats_;
+    }
 
     template <template <typename...> typename TContainer, typename TWorker>
     requires (is_supported_container<TContainer, std::unique_ptr<TWorker>> && is_supported_worker<TWorker>)
-    std::expected<const typename ThreadPoolManager<TContainer, TWorker>::TableTask&, JizhakError> ThreadPoolManager<TContainer, TWorker>::get_table_task() {}
+    std::expected<const typename ThreadPoolManager<TContainer, TWorker>::TableTask, JizhakError>
+    ThreadPoolManager<TContainer, TWorker>::get_table_task() {
+        return this->table_task_infos_;
+    }
 
     template <template <typename...> typename TContainer, typename TWorker>
     requires (is_supported_container<TContainer, std::unique_ptr<TWorker>> && is_supported_worker<TWorker>)
-    std::expected<const WorkerStats&, JizhakError> ThreadPoolManager<TContainer, TWorker>::search_worker_for(std::jthread::id thread_id) const {}
+    std::expected<const WorkerStats&, JizhakError>
+    ThreadPoolManager<TContainer, TWorker>::search_worker_for(std::jthread::id thread_id) const {
+        std::scoped_lock lock(tables_mutex_);
+
+        auto it = table_worker_stats_.find(thread_id);
+
+        if (it == table_worker_stats_.end())
+            return std::unexpected(JizhakError{JizhakErrorID::worker_not_found});
+
+        return it->second.stats;
+    }
 
     template <template <typename...> typename TContainer, typename TWorker>
     requires (is_supported_container<TContainer, std::unique_ptr<TWorker>> && is_supported_worker<TWorker>)
-    std::expected<const TaskInfo&, JizhakError> ThreadPoolManager<TContainer, TWorker>::search_task_for(Task::id_t task_id) const {}
+    std::expected<const TaskInfo, JizhakError>
+    ThreadPoolManager<TContainer, TWorker>::search_task_for(Task::id_t task_id) const {
+        std::scoped_lock lock(tables_mutex_);
+
+        for (const auto& pair : table_task_infos_) {
+            const auto& sync_task_infos = pair.second;
+
+            for (const auto& task_info : sync_task_infos.infos) {
+                if (task_info.id == task_id) {
+                    return task_info;
+                }
+            }
+        }
+
+        return std::unexpected(JizhakError{JizhakErrorID::task_not_found});
+    }
 
     template <template <typename...> typename TContainer, typename TWorker>
     requires (is_supported_container<TContainer, std::unique_ptr<TWorker>> && is_supported_worker<TWorker>)

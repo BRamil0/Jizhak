@@ -20,6 +20,8 @@ export namespace jzh {
         generic_error,
         function_is_empty,
         cannot_steal_task,
+        worker_not_found,
+        task_not_found,
     };
 
     template <typename T> requires is_supported_enum<T>

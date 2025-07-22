@@ -30,8 +30,8 @@ export namespace jzh {
         friend class BaseWorker;
 
         using Workers = TContainer<std::unique_ptr<TWorker>>;
-        using TableWorker = std::unordered_map<std::jthread::id, WorkerStats>;
-        using TableTask = std::unordered_map<std::jthread::id, std::vector<TaskInfo>>;
+        using TableWorker = std::unordered_map<std::jthread::id, SynchronizedWorkerStats>;
+        using TableTask = std::unordered_map<std::jthread::id, SynchronizedTaskInfos>;
 
         using OptionalError = std::optional<JizhakError>;
 
@@ -45,6 +45,7 @@ export namespace jzh {
         std::atomic<bool> pause_ = false;
 
         mutable std::mutex workers_mutex_{};
+        mutable std::mutex tables_mutex_{};
 
         mutable std::mutex wait_mutex_;
         std::condition_variable wait_cv_;
@@ -84,7 +85,7 @@ export namespace jzh {
 
 
         std::expected<const WorkerStats&, JizhakError> operator[](std::jthread::id thread_id) const;
-        std::expected<const TaskInfo&, JizhakError> operator[](Task::id_t task_id) const;
+        std::expected<const TaskInfo, JizhakError> operator[](Task::id_t task_id) const;
 
 
         template <typename F, typename... Args> // Метод для додавання функцій.
@@ -115,11 +116,11 @@ export namespace jzh {
         OptionalError pause();
         OptionalError resume();
 
-        std::expected<const TableWorker&, JizhakError> get_table_worker();
-        std::expected<const TableTask&, JizhakError> get_table_task();
+        std::expected<const TableWorker, JizhakError> get_table_worker();
+        std::expected<const TableTask, JizhakError> get_table_task();
 
         std::expected<const WorkerStats&, JizhakError> search_worker_for(std::jthread::id thread_id) const;
-        std::expected<const TaskInfo&, JizhakError> search_task_for(Task::id_t task_id) const;
+        std::expected<const TaskInfo, JizhakError> search_task_for(Task::id_t task_id) const;
 
         [[nodiscard]] size_t size() const;
         [[nodiscard]] size_t number_tasks() const;
