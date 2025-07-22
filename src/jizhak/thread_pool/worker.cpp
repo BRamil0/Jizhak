@@ -19,7 +19,9 @@ namespace jzh {
             Task task_to_run;
             {
                 std::unique_lock lock(queue_mutex);
-                cv.wait(lock, [this, &token] { return !tasks.empty() || token.stop_requested(); });
+                cv.wait(lock, [this, &token, tpm] {
+                    return token.stop_requested() || (!tasks.empty() && !tpm->__is_paused());
+                });
 
                 if (token.stop_requested()) return;
 
