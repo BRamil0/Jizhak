@@ -104,6 +104,11 @@ export namespace jzh {
         template<class Rep, class Period>
         OptionalError wait_all(const std::chrono::duration<Rep, Period>& time_out);
 
+        OptionalError stop_all();
+
+        template<class Rep, class Period>
+        OptionalError stop_all(const std::chrono::duration<Rep, Period>& time_out);
+
         OptionalError pause();
         OptionalError resume();
 

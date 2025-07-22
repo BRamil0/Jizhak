@@ -111,6 +111,16 @@ namespace jzh {
     ThreadPoolManager<TContainer, TWorker>::OptionalError
     ThreadPoolManager<TContainer, TWorker>::wait_all(const std::chrono::duration<Rep, Period>& time_out) {}
 
+    template <template <typename...> typename TContainer, typename TWorker>
+    requires (is_supported_container<TContainer, std::unique_ptr<TWorker>> && is_supported_worker<TWorker>)
+    ThreadPoolManager<TContainer, TWorker>::OptionalError ThreadPoolManager<TContainer, TWorker>::stop_all() {}
+
+    template <template <typename...> typename TContainer, typename TWorker>
+    requires (is_supported_container<TContainer, std::unique_ptr<TWorker>> && is_supported_worker<TWorker>)
+    template <class Rep, class Period>
+    ThreadPoolManager<TContainer, TWorker>::OptionalError
+    ThreadPoolManager<TContainer, TWorker>::stop_all(const std::chrono::duration<Rep, Period>& time_out) {}
+
 
     template <template <typename...> typename TContainer, typename TWorker>
     requires (is_supported_container<TContainer, std::unique_ptr<TWorker>> && is_supported_worker<TWorker>)
