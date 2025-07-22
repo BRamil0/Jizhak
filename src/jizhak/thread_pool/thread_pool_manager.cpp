@@ -46,7 +46,9 @@ namespace jzh {
 
     template <template <typename...> typename TContainer, typename TWorker>
     requires (is_supported_container<TContainer, std::unique_ptr<TWorker>> && is_supported_worker<TWorker>)
-    size_t ThreadPoolManager<TContainer, TWorker>::__number_workers() override {}
+    size_t ThreadPoolManager<TContainer, TWorker>::__number_workers() override {
+        return this->number_workers();
+    }
 
     // ThreadPoolManager: public
     template <template <typename...> typename TContainer, typename TWorker>
@@ -149,22 +151,35 @@ namespace jzh {
 
     template <template <typename...> typename TContainer, typename TWorker>
     requires (is_supported_container<TContainer, std::unique_ptr<TWorker>> && is_supported_worker<TWorker>)
-    size_t ThreadPoolManager<TContainer, TWorker>::size() const {}
+    size_t ThreadPoolManager<TContainer, TWorker>::size() const {
+        return this->number_workers();
+    }
 
     template <template <typename...> typename TContainer, typename TWorker>
     requires (is_supported_container<TContainer, std::unique_ptr<TWorker>> && is_supported_worker<TWorker>)
-    size_t ThreadPoolManager<TContainer, TWorker>::number_tasks() const {}
+    size_t ThreadPoolManager<TContainer, TWorker>::number_tasks() const {
+        return this->pending_tasks_;
+    }
 
     template <template <typename...> typename TContainer, typename TWorker>
     requires (is_supported_container<TContainer, std::unique_ptr<TWorker>> && is_supported_worker<TWorker>)
-    size_t ThreadPoolManager<TContainer, TWorker>::number_workers() const {}
+    size_t ThreadPoolManager<TContainer, TWorker>::number_workers() const {
+        std::scoped_lock lock(workers_mutex_);
+        return this->workers_.size();
+    }
 
     template <template <typename...> typename TContainer, typename TWorker>
     requires (is_supported_container<TContainer, std::unique_ptr<TWorker>> && is_supported_worker<TWorker>)
-    [[nodiscard]] bool ThreadPoolManager<TContainer, TWorker>::is_there_task() const {}
+    [[nodiscard]] bool ThreadPoolManager<TContainer, TWorker>::is_there_task() const {
+        if (this->pending_tasks_)
+            return true;
+        return false;
+    }
 
     template <template <typename...> typename TContainer, typename TWorker>
     requires (is_supported_container<TContainer, std::unique_ptr<TWorker>> && is_supported_worker<TWorker>)
-    [[nodiscard]] bool ThreadPoolManager<TContainer, TWorker>::is_paused() const {}
+    [[nodiscard]] bool ThreadPoolManager<TContainer, TWorker>::is_paused() const {
+        return this->pause_;
+    }
 
 } // namespace jzh

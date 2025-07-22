@@ -37,16 +37,17 @@ export namespace jzh {
 
     private:
         Workers workers_{};
-
         std::atomic<size_t> pending_tasks_{0};
-
-        mutable std::mutex wait_mutex_;
-        std::condition_variable wait_cv_;
 
         TableWorker table_worker_stats_{};
         TableTask table_task_infos_{};
 
-        bool pause_ = false;
+        std::atomic<bool> pause_ = false;
+
+        mutable std::mutex workers_mutex_{};
+
+        mutable std::mutex wait_mutex_;
+        std::condition_variable wait_cv_;
 
     protected:
         std::expected<std::jthread::id, JizhakError> create_worker(unsigned int quantity = 1);
