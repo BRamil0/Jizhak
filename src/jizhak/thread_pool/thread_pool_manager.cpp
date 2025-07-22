@@ -193,12 +193,9 @@ namespace jzh {
     ThreadPoolManager<TContainer, TWorker>::search_worker_for(std::jthread::id thread_id) const {
         std::scoped_lock lock(tables_mutex_);
 
-        auto it = table_worker_stats_.find(thread_id);
-
-        if (it == table_worker_stats_.end())
-            return std::unexpected(JizhakError{JizhakErrorID::worker_not_found});
-
-        return it->second.stats;
+        if (auto it = table_worker_stats_.find(thread_id); it != table_worker_stats_.end())
+            return it->second.stats;
+        return std::unexpected(JizhakError{JizhakErrorID::worker_not_found});
     }
 
     template <template <typename...> typename TContainer, typename TWorker>
@@ -207,15 +204,10 @@ namespace jzh {
     ThreadPoolManager<TContainer, TWorker>::search_task_for(Task::id_t task_id) const {
         std::scoped_lock lock(tables_mutex_);
 
-        for (const auto& pair : table_task_infos_) {
-            const auto& sync_task_infos = pair.second;
-
-            for (const auto& task_info : sync_task_infos.infos) {
-                if (task_info.id == task_id) {
+        for (auto&& value : table_task_infos_ | std::views::values)
+            for (const auto& task_info : value.infos)
+                if (task_info.id == task_id)
                     return task_info;
-                }
-            }
-        }
 
         return std::unexpected(JizhakError{JizhakErrorID::task_not_found});
     }
