@@ -63,6 +63,10 @@ namespace jzh {
         cv.notify_one();
     }
 
+    void BaseWorker::notify() {
+        this->cv.notify_one();
+    }
+
     std::optional<std::deque<Task>> BaseWorker::yield_half_of_tasks() {
         std::scoped_lock lock(queue_mutex);
 

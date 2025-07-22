@@ -36,6 +36,8 @@ export namespace jzh {
 
         void add_task(Task new_task);
 
+        void notify();
+
         virtual std::optional<std::deque<Task>> yield_half_of_tasks();
 
         [[nodiscard]] size_t size() const;
