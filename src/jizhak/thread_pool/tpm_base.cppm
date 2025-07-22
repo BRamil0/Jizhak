@@ -17,5 +17,7 @@ export namespace jzh {
         virtual BaseWorker* get_worker_by_index(size_t index) = 0;
 
         virtual size_t __number_workers() = 0;
+
+        virtual bool __is_paused() = 0;
     };
 }// namespace jzh

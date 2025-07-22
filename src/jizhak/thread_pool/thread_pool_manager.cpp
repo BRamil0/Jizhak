@@ -50,6 +50,12 @@ namespace jzh {
         return this->number_workers();
     }
 
+    template <template <typename...> class TContainer, typename TWorker>
+    requires (is_supported_container<TContainer, std::unique_ptr<TWorker>> && is_supported_worker<TWorker>)
+    bool ThreadPoolManager<TContainer, TWorker>::__is_paused() {
+        return this->is_paused();
+    }
+
     // ThreadPoolManager: public
     template <template <typename...> typename TContainer, typename TWorker>
     requires (is_supported_container<TContainer, std::unique_ptr<TWorker>> && is_supported_worker<TWorker>)

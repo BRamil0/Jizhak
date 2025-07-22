@@ -66,7 +66,9 @@ export namespace jzh {
 
         TWorker* get_worker_by_index(size_t index) override;
 
-        size_t __number_workers() override;
+        [[nodiscard]] size_t __number_workers() override;
+
+        [[nodiscard]] bool __is_paused() override;
 
     public:
         explicit ThreadPoolManager() = default;
@@ -119,9 +121,9 @@ export namespace jzh {
         std::expected<const WorkerStats&, JizhakError> search_worker_for(std::jthread::id thread_id) const;
         std::expected<const TaskInfo&, JizhakError> search_task_for(Task::id_t task_id) const;
 
-        size_t size() const;
-        size_t number_tasks() const;
-        size_t number_workers() const;
+        [[nodiscard]] size_t size() const;
+        [[nodiscard]] size_t number_tasks() const;
+        [[nodiscard]] size_t number_workers() const;
 
         [[nodiscard]] bool is_there_task() const;
         [[nodiscard]] bool is_paused() const;
