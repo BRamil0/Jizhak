@@ -24,12 +24,12 @@ concept is_supported_worker = requires(TWorker worker, jzh::Task task) {
 
 export namespace jzh {
     template <template <typename...> typename TContainer = std::vector, typename TWorker = Worker>
-    requires (is_supported_container<TContainer, std::unique_ptr<TWorker>> && is_supported_worker<TWorker>)
+    requires (is_supported_container<TContainer, std::shared_ptr<TWorker>> && is_supported_worker<TWorker>)
     class ThreadPoolManager : protected ThreadPoolManagerBase {
     public:
         friend class BaseWorker;
 
-        using Workers = TContainer<std::unique_ptr<TWorker>>;
+        using Workers = TContainer<std::shared_ptr<TWorker>>;
         using TableWorker = std::unordered_map<std::jthread::id, SynchronizedWorkerStats>;
         using TableTask = std::unordered_map<std::jthread::id, SynchronizedTaskInfos>;
 
@@ -37,6 +37,7 @@ export namespace jzh {
 
     private:
         Workers workers_{};
+        std::unordered_map<std::jthread::id, std::weak_ptr<TWorker>> worker_for_id_{};
         std::atomic<size_t> pending_tasks_{0};
 
         TableWorker table_worker_stats_{};
@@ -67,9 +68,9 @@ export namespace jzh {
 
         TWorker* get_worker_by_index(size_t index) override;
 
-        [[nodiscard]] size_t __number_workers() override;
+        [[nodiscard]] size_t __number_workers() const override;
 
-        [[nodiscard]] bool __is_paused() override;
+        [[nodiscard]] bool __is_paused() const override;
 
     public:
         explicit ThreadPoolManager() = default;
@@ -104,20 +105,21 @@ export namespace jzh {
         OptionalError remove_task(Task::id_t task_id, std::jthread::id thread_id); // beta
 
         OptionalError wait_all();
-
         template<class Rep, class Period>
         OptionalError wait_all(const std::chrono::duration<Rep, Period>& time_out);
 
         OptionalError stop_all();
-
         template<class Rep, class Period>
         OptionalError stop_all(const std::chrono::duration<Rep, Period>& time_out);
 
-        OptionalError pause();
-        OptionalError resume();
+        void pause();
+        void resume();
 
-        std::expected<const TableWorker, JizhakError> get_table_worker();
-        std::expected<const TableTask, JizhakError> get_table_task();
+        void notify_all();
+        void notify(std::jthread::id thread_id);
+
+        std::expected<const TableWorker, JizhakError> get_table_worker() const;
+        std::expected<const TableTask, JizhakError> get_table_task() const;
 
         std::expected<const WorkerStats&, JizhakError> search_worker_for(std::jthread::id thread_id) const;
         std::expected<const TaskInfo, JizhakError> search_task_for(Task::id_t task_id) const;
