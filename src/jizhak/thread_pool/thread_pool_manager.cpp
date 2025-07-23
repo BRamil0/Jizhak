@@ -147,7 +147,9 @@ namespace jzh {
 
     template <template <typename...> typename TContainer, typename TWorker>
     requires (is_supported_container<TContainer, std::shared_ptr<TWorker>> && is_supported_worker<TWorker>)
-    ThreadPoolManager<TContainer, TWorker>::~ThreadPoolManager() override {}
+    ThreadPoolManager<TContainer, TWorker>::~ThreadPoolManager() override {
+        this->stop_all();
+    }
 
 
     template <template <typename...> typename TContainer, typename TWorker>
@@ -181,7 +183,6 @@ namespace jzh {
     requires (is_supported_container<TContainer, std::shared_ptr<TWorker>> && is_supported_worker<TWorker>)
     typename ThreadPoolManager<TContainer, TWorker>::OptionalError
     ThreadPoolManager<TContainer, TWorker>::remove_worker(std::jthread::id thread_id) {
-        std::scoped_lock lock(workers_mutex_);
         return this->stop_worker(thread_id);
     }
 
@@ -205,24 +206,64 @@ namespace jzh {
 
     template <template <typename...> typename TContainer, typename TWorker>
     requires (is_supported_container<TContainer, std::shared_ptr<TWorker>> && is_supported_worker<TWorker>)
-    typename ThreadPoolManager<TContainer, TWorker>::OptionalError ThreadPoolManager<TContainer, TWorker>::wait_all() {}
+    void ThreadPoolManager<TContainer, TWorker>::wait_all() {
+        std::unique_lock lock(wait_mutex_);
+
+        wait_cv_.wait(lock, [this] {
+            return pending_tasks_.load() == 0;
+        });
+    }
 
 
     template <template <typename...> typename TContainer, typename TWorker>
     requires (is_supported_container<TContainer, std::shared_ptr<TWorker>> && is_supported_worker<TWorker>)
     template <class Rep, class Period>
     typename ThreadPoolManager<TContainer, TWorker>::OptionalError
-    ThreadPoolManager<TContainer, TWorker>::wait_all(const std::chrono::duration<Rep, Period>& time_out) {}
+    ThreadPoolManager<TContainer, TWorker>::wait_all(const std::chrono::duration<Rep, Period>& timeout) {
+        std::unique_lock lock(wait_mutex_);
+
+        bool success = wait_cv_.wait_for(lock, timeout, [this] {
+            return pending_tasks_.load() == 0;
+        });
+
+        if (success) return std::nullopt;
+        return JizhakError{JizhakErrorID::timeout_expired};
+    }
 
     template <template <typename...> typename TContainer, typename TWorker>
     requires (is_supported_container<TContainer, std::shared_ptr<TWorker>> && is_supported_worker<TWorker>)
-    typename ThreadPoolManager<TContainer, TWorker>::OptionalError ThreadPoolManager<TContainer, TWorker>::stop_all() {}
+    typename ThreadPoolManager<TContainer, TWorker>::OptionalError ThreadPoolManager<TContainer, TWorker>::stop_all() {
+        wait_all();
+
+        std::vector<std::jthread::id> ids_to_stop;
+
+        {
+            std::scoped_lock lock(workers_mutex_);
+            ids_to_stop.reserve(worker_for_id_.size());
+            for (const auto& pair : worker_for_id_) {
+                ids_to_stop.push_back(pair.first);
+            }
+        }
+
+        for (const auto& id : ids_to_stop) {
+            stop_worker(id);
+        }
+
+        return std::nullopt;
+    }
 
     template <template <typename...> typename TContainer, typename TWorker>
     requires (is_supported_container<TContainer, std::shared_ptr<TWorker>> && is_supported_worker<TWorker>)
     template <class Rep, class Period>
     typename ThreadPoolManager<TContainer, TWorker>::OptionalError
-    ThreadPoolManager<TContainer, TWorker>::stop_all(const std::chrono::duration<Rep, Period>& time_out) {}
+    ThreadPoolManager<TContainer, TWorker>::stop_all(const std::chrono::duration<Rep, Period>& timeout) {
+        auto future = std::async(std::launch::async, &ThreadPoolManager::stop_all, this);
+
+        if (future.wait_for(timeout) == std::future_status::ready)
+            return future.get();
+
+        throw std::runtime_error("Timeout expired during thread pool shutdown.");
+    }
 
 
     template <template <typename...> typename TContainer, typename TWorker>

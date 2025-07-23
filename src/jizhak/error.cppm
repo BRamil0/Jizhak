@@ -24,6 +24,7 @@ export namespace jzh {
         worker_not_found,
         task_not_found,
         zero_transferred,
+        timeout_expired,
     };
 
     template <typename T> requires is_supported_enum<T>

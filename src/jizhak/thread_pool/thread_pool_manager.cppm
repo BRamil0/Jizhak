@@ -104,13 +104,13 @@ export namespace jzh {
         OptionalError remove_task(Task::id_t task_id); // beta
         OptionalError remove_task(Task::id_t task_id, std::jthread::id thread_id); // beta
 
-        OptionalError wait_all();
+        void wait_all();
         template<class Rep, class Period>
-        OptionalError wait_all(const std::chrono::duration<Rep, Period>& time_out);
+        OptionalError wait_all(const std::chrono::duration<Rep, Period>& timeout);
 
         OptionalError stop_all();
         template<class Rep, class Period>
-        OptionalError stop_all(const std::chrono::duration<Rep, Period>& time_out);
+        OptionalError stop_all(const std::chrono::duration<Rep, Period>& timeout);
 
         void pause();
         void resume();
