@@ -14,6 +14,7 @@ export namespace jzh {
         std::jthread::id id{};
 
         std::condition_variable cv{};
+        std::atomic<bool> is_shutdown = false;
     protected:
         std::deque<Task> tasks{};
         mutable std::mutex queue_mutex{};
@@ -37,6 +38,10 @@ export namespace jzh {
         void add_task(Task new_task);
 
         void notify();
+
+        void start_shutdown();
+
+        void join();
 
         virtual std::optional<std::deque<Task>> yield_half_of_tasks();
 

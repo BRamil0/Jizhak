@@ -15,7 +15,7 @@ namespace jzh {
         if (!locked_tpm_ptr) return;
         ThreadPoolManagerBase* tpm = locked_tpm_ptr.get();
 
-        while (!token.stop_requested()) {
+        while (true) {
             Task task_to_run;
             {
                 std::unique_lock lock(queue_mutex);
@@ -25,7 +25,9 @@ namespace jzh {
 
                 if (token.stop_requested()) return;
 
-                if (tasks.empty()) {
+                if (is_shutdown.load() && tasks.empty()) return;
+
+                if (tasks.empty() && !is_shutdown.load()) {
                     lock.unlock();
 
                     if (!steal_task()) continue;
@@ -34,8 +36,10 @@ namespace jzh {
                     continue;
                 }
 
-                task_to_run = std::move(tasks.front());
-                tasks.pop_front();
+                if (!tasks.empty()) {
+                    task_to_run = std::move(tasks.front());
+                    tasks.pop_front();
+                }
             }
 
             if (task_to_run.function) {
@@ -65,6 +69,17 @@ namespace jzh {
 
     void BaseWorker::notify() {
         this->cv.notify_one();
+    }
+
+    void BaseWorker::start_shutdown() {
+        this->is_shutdown = true;
+        cv.notify_one();
+    }
+
+    void BaseWorker::join() {
+        if (thread.joinable()) {
+            thread.join();
+        }
     }
 
     std::optional<std::deque<Task>> BaseWorker::yield_half_of_tasks() {
