@@ -11,9 +11,9 @@ namespace jzh {
 
     // BaseWorker: protected
     void BaseWorker::run_loop(std::stop_token token) {
-        auto locked_tpm = this_thread::get_tpm().lock();
-        if (!locked_tpm) return;
-        ThreadPoolManagerBase* tpm = locked_tpm.get();
+        const auto locked_tpm_ptr = this_thread::get_tpm().lock();
+        if (!locked_tpm_ptr) return;
+        ThreadPoolManagerBase* tpm = locked_tpm_ptr.get();
 
         while (!token.stop_requested()) {
             Task task_to_run;
@@ -71,17 +71,15 @@ namespace jzh {
         std::scoped_lock lock(queue_mutex);
 
         size_t tasks_to_steal = tasks.size() / 2;
-        if (tasks_to_steal == 0 && !tasks.empty()) {
+        if (tasks_to_steal == 0 && !tasks.empty())
             tasks_to_steal = 1;
-        }
 
-        if (tasks_to_steal == 0) {
+        if (tasks_to_steal == 0)
             return std::nullopt;
-        }
 
         std::deque<Task> stolen_tasks;
 
-        for(size_t _ : std::ranges::iota_view{static_cast<size_t>(0), tasks_to_steal}) {
+        for([[maybe_unused]] size_t _ : std::ranges::iota_view{0uz, tasks_to_steal}) {
             stolen_tasks.push_back(std::move(tasks.front()));
             tasks.pop_front();
         }
@@ -105,20 +103,19 @@ namespace jzh {
 
     // Worker: protected
     OptionalError Worker::steal_task() {
-        auto locked_tpm = this_thread::get_tpm().lock();
+        const auto locked_tpm = this_thread::get_tpm().lock();
         if (!locked_tpm) return std::nullopt;
         ThreadPoolManagerBase* tpm = locked_tpm.get();
 
-        size_t pool_size = tpm->__number_workers();
+        const size_t pool_size = tpm->__number_workers();
         if (pool_size <= 1) return std::nullopt;
         std::uniform_int_distribution<size_t> distribution(0, pool_size - 1);
 
-        for (size_t _ : std::ranges::iota_view{static_cast<size_t>(0), pool_size}) {
-            size_t victim_index = distribution(random_generator_);
+        for ([[maybe_unused]] size_t _ : std::ranges::iota_view{0uz, pool_size}) {
+            const size_t victim_index = distribution(random_generator_);
 
-            BaseWorker* base_victim = tpm->get_worker_by_index(victim_index);
-            if (base_victim && base_victim->get_id() != this->get_id()) {
-                if (auto stolen_tasks_opt = base_victim->yield_half_of_tasks()) {
+            if (BaseWorker* base_victim = tpm->get_worker_by_index(victim_index); base_victim && base_victim->get_id() != this->get_id()) {
+                if (const auto stolen_tasks_opt = base_victim->yield_half_of_tasks()) {
                     if (!stolen_tasks_opt->empty()) {
                         const auto victim_id = base_victim->get_id();
 
