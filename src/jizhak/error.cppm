@@ -13,6 +13,7 @@ export namespace jzh {
         OK = 0,
         pass,
         null,
+        empty,
         buffer_is_empty,
         incomplete_character,
         max_size_file,
@@ -22,6 +23,7 @@ export namespace jzh {
         cannot_steal_task,
         worker_not_found,
         task_not_found,
+        zero_transferred,
     };
 
     template <typename T> requires is_supported_enum<T>

@@ -25,7 +25,7 @@ concept is_supported_worker = requires(TWorker worker, jzh::Task task) {
 export namespace jzh {
     template <template <typename...> typename TContainer = std::vector, typename TWorker = Worker>
     requires (is_supported_container<TContainer, std::shared_ptr<TWorker>> && is_supported_worker<TWorker>)
-    class ThreadPoolManager : protected ThreadPoolManagerBase {
+    class ThreadPoolManager : protected ThreadPoolManagerBase, public std::enable_shared_from_this<ThreadPoolManager<TContainer, TWorker>> {
     public:
         friend class BaseWorker;
 
@@ -52,8 +52,9 @@ export namespace jzh {
         std::condition_variable wait_cv_;
 
     protected:
-        std::expected<std::jthread::id, JizhakError> create_worker(unsigned int quantity = 1);
-        OptionalError stop_worker(std::jthread::id thread_id); // beta
+        std::jthread::id create_worker();
+        std::expected<std::vector<std::jthread::id>, JizhakError> create_worker(unsigned int quantity = 1);
+        OptionalError stop_worker(std::jthread::id thread_id);
 
         std::expected<const TWorker*, JizhakError> get_worker(std::jthread::id thread_id);
 
@@ -66,7 +67,7 @@ export namespace jzh {
                                         std::jthread::id to_thread_id,
                                         std::jthread::id from_thread_id) override;
 
-        TWorker* get_worker_by_index(size_t index) override;
+        std::weak_ptr<TWorker> get_worker_by_index(size_t index) override;
 
         [[nodiscard]] size_t __number_workers() const override;
 
@@ -93,9 +94,8 @@ export namespace jzh {
         std::expected<std::tuple<std::future<std::invoke_result_t<F, Args...>>, Task::id_t>, JizhakError>
         operator()(F&& func, Args&&... args);
 
-        std::expected<std::jthread::id, JizhakError> add_worker(unsigned int quantity = 1);
-        OptionalError remove_worker(unsigned int quantity = 1); // beta
-        OptionalError remove_worker(std::jthread::id thread_id); // beta
+        std::expected<std::jthread::id, JizhakError> add_worker();
+        OptionalError remove_worker(std::jthread::id thread_id);
 
         template <typename F, typename... Args>
         std::expected<std::tuple<std::future<std::invoke_result_t<F, Args...>>, Task::id_t>, JizhakError>
