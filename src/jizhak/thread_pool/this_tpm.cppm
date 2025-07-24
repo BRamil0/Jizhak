@@ -1,6 +1,7 @@
 export module jizhak.thread_pool.this_tpm;
 
 import jizhak.thread_pool.tpm_base;
+import jizhak.thread_pool.task;
 import std;
 
 
