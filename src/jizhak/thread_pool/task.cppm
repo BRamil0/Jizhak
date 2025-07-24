@@ -66,4 +66,12 @@ export namespace jzh {
     std::tuple<Task, TaskInfo> make_task(const Task::Function& func, const TaskInfo& task_info) {
         return std::make_tuple(Task(task_info, func), task_info);
     }
+
+    std::tuple<Task, TaskInfo> make_task(const Task::Function& func) {
+        const Task::id_t id = TASK_ID++;
+        auto task = Task(id, func);
+        auto task_info = TaskInfo();
+        return std::make_tuple(task, task_info);
+    }
+
 } // namespace jzh
