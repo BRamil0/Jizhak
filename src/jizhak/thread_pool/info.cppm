@@ -77,7 +77,7 @@ export namespace jzh {
             return async_tasks_;
         }
 
-        [[nodiscard]] std::shared_ptr<BaseWorker>& get_worker() {
+        [[nodiscard]] std::shared_ptr<BaseWorker> get_worker() {
             std::scoped_lock lock(mutex_);
 
             return worker_ptr_;
