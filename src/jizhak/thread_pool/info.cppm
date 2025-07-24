@@ -65,6 +65,28 @@ export namespace jzh {
             return JizhakError(JizhakErrorID::task_not_found);
         }
 
+        [[nodiscard]] std::optional<TaskInfo> get_task_info(Task::id_t id) const {
+            std::scoped_lock lock(mutex_);
+
+            const auto it = tasks_.find(id);
+
+            if (it != tasks_.end()) {
+                return it->second;
+            }
+
+            return std::nullopt;
+        }
+
+        [[nodiscard]] auto find_task(const Task::id_t id) {
+            std::scoped_lock lock(mutex_);
+            return tasks_.find(id);
+        }
+
+        [[nodiscard]] auto find_task(const Task::id_t id) const {
+            std::scoped_lock lock(mutex_);
+            return tasks_.find(id);
+        }
+
         [[nodiscard]] size_t total_tasks() const {
             std::scoped_lock lock(mutex_);
 
