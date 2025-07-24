@@ -20,11 +20,11 @@ export namespace jzh {
     public:
         InformationTable() = default;
 
+        explicit InformationTable(const std::shared_ptr<BaseWorker>& worker_ptr) : worker_ptr_(worker_ptr) {}
+
         explicit InformationTable(const std::shared_ptr<BaseWorker>& worker_ptr, const TaskInfo& task)
             : worker_ptr_(worker_ptr) {
-            ++total_tasks_;
-            if (task.is_async) ++async_tasks_;
-            this->tasks_[task.id] = task;
+            add_task(task);
         }
 
         BaseWorker& operator->() const {
