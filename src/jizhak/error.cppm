@@ -51,15 +51,15 @@ export namespace jzh {
     template <typename T> requires is_supported_enum<T>
     struct Error {
         T id = T::OK;
-        std::string message{default_message_for(id)};
+        std::string message_{default_message_for(id)};
 
         Error() = default;
 
         Error(const T new_id)
-            : id(new_id), message(default_message_for(new_id)) {}
+            : id(new_id), message_(default_message_for(new_id)) {}
 
         Error(const T new_id, std::string_view const& new_message)
-            : id(new_id), message(new_message) {}
+            : id(new_id), message_(new_message) {}
 
         bool operator==(const T& other_id) const {
             return id == other_id;
@@ -74,7 +74,11 @@ export namespace jzh {
         }
 
         [[nodiscard]] std::string_view what() const {
-            return message;
+            return message_;
+        }
+
+        [[nodiscard]] std::string_view message() const {
+            return message_;
         }
     };
 
