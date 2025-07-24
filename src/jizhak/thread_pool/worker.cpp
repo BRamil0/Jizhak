@@ -132,23 +132,23 @@ namespace jzh {
 
         for ([[maybe_unused]] size_t _ : std::ranges::iota_view{0uz, pool_size}) {
             const size_t victim_index = distribution(random_generator_);
-            auto weak_victim = tpm->get_worker_by_index(victim_index);
+            if (auto weak_victim = tpm->get_worker_by_index(victim_index); weak_victim.has_value()) {
+                if (const auto shared_victim = weak_victim.value().lock()) {
+                    if (shared_victim && shared_victim->get_id() != this->get_id()) {
+                        if (const auto stolen_tasks_opt = shared_victim->yield_half_of_tasks()) {
+                            if (!stolen_tasks_opt->empty()) {
+                                const auto victim_id = shared_victim->get_id();
 
-            if (const auto shared_victim = weak_victim.lock()) {
-                if (shared_victim && shared_victim->get_id() != this->get_id()) {
-                    if (const auto stolen_tasks_opt = shared_victim->yield_half_of_tasks()) {
-                        if (!stolen_tasks_opt->empty()) {
-                            const auto victim_id = shared_victim->get_id();
+                                for (const auto& task : *stolen_tasks_opt)
+                                    tpm->notify_steal_task(task.id, this->get_id(), victim_id);
 
-                            for (const auto& task : *stolen_tasks_opt)
-                                tpm->notify_steal_task(task.id, this->get_id(), victim_id);
-
-                            {
-                                std::scoped_lock lock(this->queue_mutex);
-                                for (auto& task : *stolen_tasks_opt)
-                                    this->tasks.push_back(std::move(task));
+                                {
+                                    std::scoped_lock lock(this->queue_mutex);
+                                    for (auto& task : *stolen_tasks_opt)
+                                        this->tasks.push_back(std::move(task));
+                                }
+                                return std::nullopt;
                             }
-                            return std::nullopt;
                         }
                     }
                 }
