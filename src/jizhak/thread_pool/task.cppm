@@ -7,7 +7,7 @@ export namespace jzh {
 
     struct Task {
         using id_t = unsigned long long;
-        using Function = std::function<void()>;
+        using Function = std::move_only_function<void() noexcept(false)>;
 
         id_t id{};
         Function function = nullptr;
@@ -19,7 +19,7 @@ export namespace jzh {
 
         explicit Task(const TaskInfo& task_info, Function new_func);
 
-        std::optional<JizhakError> operator()() { // NOLINT(readability-make-member-function-const)
+        std::optional<JizhakError> operator()() {
             if (function) function();
             else return JizhakError{JizhakErrorID::function_is_empty};
             return std::nullopt;
@@ -28,20 +28,15 @@ export namespace jzh {
 
     struct TaskInfo {
         Task::id_t id{};
-
         std::chrono::seconds timeout = std::chrono::seconds::zero();
-
         long long priority = 0;
         bool is_async = false;
 
         TaskInfo() = default;
-
         explicit TaskInfo(const Task::id_t id, const std::chrono::seconds timeout, const long long priority, const bool is_async)
             : id(id), timeout(timeout), priority(priority), is_async(is_async) {}
-
         explicit TaskInfo(const std::chrono::seconds timeout, const long long priority, const bool is_async)
             : timeout(timeout), priority(priority), is_async(is_async) {}
-
         explicit TaskInfo(const Task& task);
     };
 
@@ -62,22 +57,22 @@ export namespace jzh {
         return task_info;
     }
 
-    std::tuple<Task, TaskInfo> make_task(const Task::Function& func, const std::chrono::seconds timeout, const long long priority, const bool is_async) {
+    std::tuple<Task, TaskInfo> make_task(Task::Function func, const std::chrono::seconds timeout, const long long priority, const bool is_async) {
         const Task::id_t id = TASK_ID++;
-        auto task = Task(id, func);
+        auto task = Task(id, std::move(func));
         auto task_info = TaskInfo(id, timeout, priority, is_async);
-        return std::make_tuple(task, task_info);
+        return std::make_tuple(std::move(task), task_info);
     }
 
-    std::tuple<Task, TaskInfo> make_task(const Task::Function& func, const TaskInfo& task_info) {
-        return std::make_tuple(Task(task_info, func), task_info);
+    std::tuple<Task, TaskInfo> make_task(Task::Function func, TaskInfo task_info) {
+        return std::make_tuple(Task(task_info, std::move(func)), std::move(task_info));
     }
 
-    std::tuple<Task, TaskInfo> make_task(const Task::Function& func) {
+    std::tuple<Task, TaskInfo> make_task(Task::Function func) {
         const Task::id_t id = TASK_ID++;
-        auto task = Task(id, func);
+        auto task = Task(id, std::move(func));
         auto task_info = TaskInfo();
-        return std::make_tuple(task, task_info);
+        return std::make_tuple(std::move(task), task_info);
     }
 
 } // namespace jzh

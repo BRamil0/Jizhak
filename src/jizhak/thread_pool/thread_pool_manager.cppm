@@ -14,8 +14,9 @@ export namespace jzh::concepts {
         { TInfoTable(worker_ptr, task_info) };
         { table.add_task(task_info) } -> std::same_as<void>;
         { table.remove_task(task_info.id) } -> std::same_as<std::optional<jzh::JizhakError>>;
-        { table.get_worker() } -> std::same_as<std::shared_ptr<jzh::BaseWorker>>; { table.operator->() } -> std::same_as<jzh::BaseWorker*>;
-    };
+        { table.get_worker() } -> std::same_as<std::shared_ptr<jzh::BaseWorker>>;
+        { table.operator->() } -> std::same_as<jzh::BaseWorker&>;
+        };
 
     template <typename TWorker> concept is_supported_worker = requires(TWorker worker, jzh::Task task) {
         requires std::is_base_of_v<jzh::BaseWorker, TWorker>; requires std::default_initializable<TWorker>;
@@ -139,7 +140,7 @@ export namespace jzh {
 
             ++pending_tasks_;
 
-            info_table_obj->add_task(std::move(task));
+            info_table_obj.get_worker()->add_task(std::move(task));
 
             return task.id;
         }
@@ -478,7 +479,7 @@ export namespace jzh {
         void notify_all() {
             std::scoped_lock lock(info_table_mutex_);
             for (const auto& info_ptr : info_table_) {
-                info_ptr.second->notify();
+                info_ptr.second.get_worker()->notify();
             }
         }
 

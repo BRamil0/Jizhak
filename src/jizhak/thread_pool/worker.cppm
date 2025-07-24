@@ -8,7 +8,11 @@ import std;
 export namespace jzh {
     class BaseWorker {
     public:
+        template <typename TInfoTable, typename TInfoSorter, typename TWorker>
+        friend class ThreadPoolManager;
+
         using OptionalError = std::optional<JizhakError>;
+
     private:
         std::jthread thread{};
         std::jthread::id id{};

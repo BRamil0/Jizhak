@@ -17,6 +17,7 @@ namespace jzh {
 
         while (true) {
             Task task_to_run;
+            Task::id_t task_id_for_completion = 0;
             {
                 std::unique_lock lock(queue_mutex);
                 cv.wait(lock, [this, &token, tpm] {
@@ -39,12 +40,22 @@ namespace jzh {
                 if (!tasks.empty()) {
                     task_to_run = std::move(tasks.front());
                     tasks.pop_front();
+                    task_id_for_completion = task_to_run.id;
                 }
             }
 
             if (task_to_run.function) {
-                task_to_run();
-                tpm->task_completed(task_to_run.id, this->id);
+                if (task_to_run.function) {
+                    try {
+                        task_to_run(); // Виконуємо завдання
+                    } catch (const std::exception& e) {
+                        // Можна додати логування помилки
+                        // jzh::ceio.println("Task {} failed with exception: {}", task_id_for_completion, e.what());
+                    } catch (...) {
+                        // jzh::ceio.println("Task {} failed with unknown exception.", task_id_for_completion);
+                    }
+                    tpm->task_completed(task_id_for_completion, this->id);
+                }
             }
         }
     }
@@ -135,17 +146,19 @@ namespace jzh {
             if (auto weak_victim = tpm->get_worker_by_index(victim_index); weak_victim.has_value()) {
                 if (const auto shared_victim = weak_victim.value().lock()) {
                     if (shared_victim && shared_victim->get_id() != this->get_id()) {
-                        if (const auto stolen_tasks_opt = shared_victim->yield_half_of_tasks()) {
+
+                        // <--- ЗМІНА №5: Прибираємо const тут
+                        if (auto stolen_tasks_opt = shared_victim->yield_half_of_tasks()) {
                             if (!stolen_tasks_opt->empty()) {
                                 const auto victim_id = shared_victim->get_id();
 
-                                for (const auto& task : *stolen_tasks_opt)
-                                    tpm->notify_steal_task(task.id, this->get_id(), victim_id);
-
                                 {
                                     std::scoped_lock lock(this->queue_mutex);
-                                    for (auto& task : *stolen_tasks_opt)
+                                    // <--- ... і об'єднуємо цикли в один
+                                    for (auto& task : *stolen_tasks_opt) {
+                                        tpm->notify_steal_task(task.id, this->get_id(), victim_id);
                                         this->tasks.push_back(std::move(task));
+                                    }
                                 }
                                 return std::nullopt;
                             }
@@ -154,7 +167,6 @@ namespace jzh {
                 }
             }
         }
-
         return JizhakError{JizhakErrorID::cannot_steal_task};
     }
 } // namespace jzh
