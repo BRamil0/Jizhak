@@ -10,14 +10,14 @@ export namespace jzh {
         id_t id{};
         Function function = nullptr;
 
-        std::chrono::seconds time_out = std::chrono::seconds::zero();
+        std::chrono::seconds timeout = std::chrono::seconds::zero();
         long long priority = 0;
         bool is_async = false;
 
         Task() = default;
 
-        explicit Task(id_t id, Function new_func, bool is_async = false, std::chrono::seconds time_out = std::chrono::seconds(0), long long priority = 0)
-            : id(id), function(std::move(new_func)), time_out(time_out), priority(priority), is_async(is_async) {}
+        explicit Task(id_t id, Function new_func, bool is_async = false, std::chrono::seconds timeout = std::chrono::seconds(0), long long priority = 0)
+            : id(id), function(std::move(new_func)), timeout(timeout), priority(priority), is_async(is_async) {}
 
         std::optional<JizhakError> operator()() { // NOLINT(readability-make-member-function-const)
             if (function) function();
@@ -30,7 +30,7 @@ export namespace jzh {
         Task::id_t id{};
         bool is_async{};
         int priority{};
-        std::chrono::seconds time_out{};
+        std::chrono::seconds timeout{};
     };
 
     struct WorkerStats {
