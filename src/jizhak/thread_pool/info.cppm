@@ -105,6 +105,12 @@ export namespace jzh {
             return worker_ptr_;
         }
 
+        [[nodiscard]] std::shared_ptr<BaseWorker> get_worker() const {
+            std::scoped_lock lock(mutex_);
+
+            return worker_ptr_;
+        }
+
         void set_worker(const std::shared_ptr<BaseWorker>& worker_ptr) {
             std::scoped_lock lock(mutex_);
 
