@@ -10,14 +10,10 @@ export namespace jzh {
         id_t id{};
         Function function = nullptr;
 
-        std::chrono::seconds timeout = std::chrono::seconds::zero();
-        long long priority = 0;
-        bool is_async = false;
-
         Task() = default;
 
-        explicit Task(id_t id, Function new_func, bool is_async = false, std::chrono::seconds timeout = std::chrono::seconds(0), long long priority = 0)
-            : id(id), function(std::move(new_func)), timeout(timeout), priority(priority), is_async(is_async) {}
+        explicit Task(const id_t id, Function new_func)
+            : id(id), function(std::move(new_func)) {}
 
         std::optional<JizhakError> operator()() { // NOLINT(readability-make-member-function-const)
             if (function) function();
@@ -28,23 +24,26 @@ export namespace jzh {
 
     struct TaskInfo {
         Task::id_t id{};
-        bool is_async{};
-        int priority{};
-        std::chrono::seconds timeout{};
+
+        std::chrono::seconds timeout = std::chrono::seconds::zero();
+
+        long long priority = 0;
+        bool is_async = false;
+
+        TaskInfo() = default;
+
+        explicit TaskInfo(const Task::id_t id, const std::chrono::seconds timeout, const long long priority, const bool is_async)
+            : id(id), timeout(timeout), priority(priority), is_async(is_async) {}
+
+        explicit TaskInfo(const Task& task) : id(task.id) {}
     };
 
-    struct WorkerStats {
-        std::atomic<size_t> total_tasks = 0;
-        std::atomic<size_t> async_tasks = 0;
-    };
+    static constinit std::atomic<Task::id_t> TASK_ID = 0;
 
-    struct SynchronizedWorkerStats {
-        WorkerStats stats{};
-        mutable std::mutex mtx{};
-    };
-
-    struct SynchronizedTaskInfos {
-        std::vector<TaskInfo> infos{};
-        mutable std::mutex mtx{};
-    };
+    std::tuple<Task, TaskInfo> make_task(const Task::Function& func, const std::chrono::seconds timeout, const long long priority, const bool is_async) {
+        const Task::id_t id = TASK_ID++;
+        auto task = Task(id, func);
+        auto task_info = TaskInfo(id, timeout, priority, is_async);
+        return std::make_tuple(task, task_info);
+    }
 } // namespace jzh
