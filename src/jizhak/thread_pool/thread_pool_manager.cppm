@@ -44,8 +44,7 @@ export namespace jzh {
 
         std::atomic<bool> pause_ = false;
 
-        mutable std::mutex workers_mutex_{};
-        mutable std::mutex table_mutex_{};
+        mutable std::mutex info_table_mutex_{};
 
         mutable std::mutex wait_mutex_;
         std::condition_variable wait_cv_;
@@ -56,11 +55,11 @@ export namespace jzh {
         OptionalError stop_worker(std::jthread::id thread_id);
 
         std::expected<std::weak_ptr<TWorker>, JizhakError> get_worker(std::jthread::id thread_id) override;
-        std::weak_ptr<TWorker> get_worker_by_index(size_t index) override;
+        std::expected<std::weak_ptr<TWorker>, JizhakError> get_worker_by_index(size_t index) override;
 
-        std::expected<Task::id_t, JizhakError> create_task(Task &task);
-        OptionalError delete_task(Task::id_t task_id); // beta
-        OptionalError delete_task(Task::id_t task_id, std::jthread::id thread_id); // beta
+        std::expected<Task::id_t, JizhakError> create_task(Task& task, TaskInfo& task_info);
+        OptionalError delete_task(Task::id_t task_id);
+        OptionalError delete_task(Task::id_t task_id, std::jthread::id thread_id);
 
         OptionalError task_completed(Task::id_t task_id, std::jthread::id thread_id) override;
         OptionalError notify_steal_task(Task::id_t task_id,
@@ -71,7 +70,7 @@ export namespace jzh {
 
         [[nodiscard]] bool __is_paused() const override;
 
-        std::expected<Task::id_t, JizhakError> __add_task(Task &task) override;
+        std::expected<Task::id_t, JizhakError> __add_task(Task& task, TaskInfo& task_info) override;
 
     public:
         explicit ThreadPoolManager() = default;
@@ -92,21 +91,39 @@ export namespace jzh {
         std::expected<const TaskInfo, JizhakError> operator[](Task::id_t task_id) const;
 
 
-        std::expected<Task::id_t, JizhakError> operator()(Task &task);
-        template <typename F, typename... Args> // Метод для додавання функцій.
+        std::expected<Task::id_t, JizhakError> operator()(Task& task, TaskInfo& task_info);
+
+        template <typename F, typename... Args>
+        std::expected<std::tuple<std::future<std::invoke_result_t<F, Args...>>, Task::id_t>, JizhakError>
+        operator()(std::tuple<Task, TaskInfo> task_bundle);
+
+        template <typename F, typename... Args>
         std::expected<std::tuple<std::future<std::invoke_result_t<F, Args...>>, Task::id_t>, JizhakError>
         operator()(F&& func, Args&&... args);
+
+        template <typename F, typename... Args>
+        std::expected<std::tuple<std::future<std::invoke_result_t<F, Args...>>, Task::id_t>, JizhakError>
+        operator()(TaskInfo task_info, F&& func, Args&&... args);
 
         std::expected<std::jthread::id, JizhakError> add_worker();
         OptionalError remove_worker(std::jthread::id thread_id);
 
-        std::expected<Task::id_t, JizhakError> add_task(Task &task);
+        std::expected<Task::id_t, JizhakError> add_task(Task& task, TaskInfo& task_info);
+
+        template <typename F, typename... Args>
+        std::expected<std::tuple<std::future<std::invoke_result_t<F, Args...>>, Task::id_t>, JizhakError>
+        add_task(std::tuple<Task, TaskInfo> task_bundle);
+
         template <typename F, typename... Args>
         std::expected<std::tuple<std::future<std::invoke_result_t<F, Args...>>, Task::id_t>, JizhakError>
         add_task(F&& func, Args&&... args);
 
+        template <typename F, typename... Args>
+        std::expected<std::tuple<std::future<std::invoke_result_t<F, Args...>>, Task::id_t>, JizhakError>
+        add_task(TaskInfo task_info, F&& func, Args&&... args);
+
         OptionalError remove_task(Task::id_t task_id); // beta
-        OptionalError remove_task(Task::id_t task_id, std::jthread::id thread_id); // beta
+        OptionalError remove_task(Task::id_t task_id, std::jthread::id thread_id);
 
         void wait_all();
         template<class Rep, class Period>
