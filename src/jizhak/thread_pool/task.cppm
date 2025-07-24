@@ -50,6 +50,12 @@ export namespace jzh {
 
     static constinit std::atomic<Task::id_t> TASK_ID = 0;
 
+    TaskInfo task_info_set_id(TaskInfo task_info) {
+        const Task::id_t id = TASK_ID++;
+        task_info.id = id;
+        return task_info;
+    }
+
     TaskInfo& task_info_set_id(TaskInfo& task_info) {
         const Task::id_t id = TASK_ID++;
         task_info.id = id;
