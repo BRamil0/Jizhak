@@ -28,7 +28,7 @@ export namespace jzh::concepts {
         { worker.notify() } -> std::same_as<void>;
         { worker.start_shutdown() } -> std::same_as<void>;
         { worker.join() } -> std::same_as<void>;
-        { worker.request_stop() } -> std::same_as<void>;
+        { worker.instant_stop() } -> std::same_as<void>;
         { worker.get_id() } -> std::same_as<std::jthread::id>;
     };
 } // namespace jzh::concepts
@@ -60,8 +60,8 @@ export namespace jzh {
         std::expected<std::vector<std::jthread::id>, JizhakError> create_worker(unsigned int quantity = 1);
         OptionalError stop_worker(std::jthread::id thread_id);
 
-        std::expected<std::weak_ptr<TWorker>, JizhakError> get_worker(std::jthread::id thread_id) override;
-        std::expected<std::weak_ptr<TWorker>, JizhakError> get_worker_by_index(size_t index) override;
+        std::expected<std::weak_ptr<BaseWorker>, JizhakError> get_worker(std::jthread::id thread_id) override;
+        std::expected<std::weak_ptr<BaseWorker>, JizhakError> get_worker_by_index(size_t index) override;
 
         std::expected<Task::id_t, JizhakError> create_task(Task& task, TaskInfo& task_info);
         OptionalError delete_task(Task::id_t task_id);
@@ -160,11 +160,13 @@ export namespace jzh {
         [[nodiscard]] bool is_paused() const;
     };
 
-    std::shared_ptr<ThreadPoolManager<auto>> new_tpm() {
-        return std::make_shared<ThreadPoolManager<auto>>{};
+    using DefaultThreadPoolManager = ThreadPoolManager<>;
+
+    inline std::shared_ptr<DefaultThreadPoolManager> new_tpm() {
+        return std::make_shared<DefaultThreadPoolManager>();
     }
 
-    std::shared_ptr<ThreadPoolManager<auto>> new_tpm(unsigned int quantity) {
-        return std::make_shared<ThreadPoolManager<auto>>{quantity};
+    inline std::shared_ptr<DefaultThreadPoolManager> new_tpm(unsigned int quantity) {
+        return std::make_shared<DefaultThreadPoolManager>(quantity);
     }
 } // namespace jzh

@@ -67,7 +67,7 @@ namespace jzh {
 
     template <typename TInfoTable, typename TInfoSorter, typename TWorker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
-    std::expected<std::weak_ptr<TWorker>, JizhakError> ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::get_worker(std::jthread::id thread_id) {
+    std::expected<std::weak_ptr<BaseWorker>, JizhakError> ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::get_worker(std::jthread::id thread_id) {
         if (auto& it = info_table_.find(thread_id); it != info_table_.end())
             return it;
 
@@ -76,7 +76,7 @@ namespace jzh {
 
     template <typename TInfoTable, typename TInfoSorter, typename TWorker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
-    std::expected<std::weak_ptr<TWorker>, JizhakError>
+    std::expected<std::weak_ptr<BaseWorker>, JizhakError>
     ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::get_worker_by_index(size_t index) override {
         std::scoped_lock lock(info_table_mutex_);
         if (index >= info_table_.size())
