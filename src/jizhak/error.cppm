@@ -28,6 +28,7 @@ export namespace jzh {
         index_overrun,
         no_workers_available,
         identifiers_are_different,
+        failed_start_in_stream,
     };
 
     template <typename T> requires is_supported_enum<T>
