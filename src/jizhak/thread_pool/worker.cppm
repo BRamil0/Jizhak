@@ -59,7 +59,7 @@ export namespace jzh {
     private:
         mutable std::mt19937 random_generator_{};
 
-    protected:
+    public:
         OptionalError steal_task() override;
         explicit Worker() : BaseWorker(), random_generator_(std::random_device{}()) {}
 
