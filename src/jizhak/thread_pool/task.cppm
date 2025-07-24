@@ -48,7 +48,7 @@ export namespace jzh {
     Task::Task(const TaskInfo& task_info, Function new_func): id(task_info.id), function(std::move(new_func)) {}
     TaskInfo::TaskInfo(const Task& task): id(task.id) {}
 
-    static constinit std::atomic<Task::id_t> TASK_ID = 0;
+    inline constinit std::atomic<Task::id_t> TASK_ID = 0;
 
     TaskInfo task_info_set_id(TaskInfo task_info) {
         const Task::id_t id = TASK_ID++;
