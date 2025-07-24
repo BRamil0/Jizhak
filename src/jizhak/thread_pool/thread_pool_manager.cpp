@@ -169,7 +169,8 @@ namespace jzh {
     template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::~ThreadPoolManager() override {
-        this->stop_all();
+        if (!info_table_.empty())
+            this->stop_all(std::chrono::minutes(10));
     }
 
     template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
@@ -358,7 +359,36 @@ namespace jzh {
         if (future.wait_for(timeout) == std::future_status::ready)
             return future.get();
 
+        this->instant_stop_all();
+
         throw std::runtime_error("Timeout expired during thread pool shutdown.");
+    }
+
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
+    requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
+    void ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::instant_stop_all() {
+        std::vector<std::shared_ptr<TWorker>> workers_to_join;
+        {
+            std::scoped_lock lock(info_table_mutex_);
+            for (const auto& pair : info_table_) {
+                workers_to_join.push_back(pair.second.get_worker());
+            }
+        }
+
+        for (const auto& worker_ptr : workers_to_join) {
+            worker_ptr->instant_stop();
+        }
+
+        notify_all();
+
+        for (const auto& worker_ptr : workers_to_join) {
+            worker_ptr->join();
+        }
+
+        {
+            std::scoped_lock lock(info_table_mutex_);
+            info_table_.clear();
+        }
     }
 
 

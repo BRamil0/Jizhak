@@ -43,6 +43,8 @@ export namespace jzh {
 
         void join();
 
+        void instant_stop();
+
         virtual std::optional<std::deque<Task>> yield_half_of_tasks();
 
         [[nodiscard]] size_t size() const;

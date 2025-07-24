@@ -82,6 +82,10 @@ namespace jzh {
         }
     }
 
+    void BaseWorker::instant_stop() {
+        thread.request_stop();
+    }
+
     std::optional<std::deque<Task>> BaseWorker::yield_half_of_tasks() {
         std::scoped_lock lock(queue_mutex);
 

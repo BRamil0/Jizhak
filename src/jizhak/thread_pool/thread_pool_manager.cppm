@@ -28,6 +28,7 @@ export namespace jzh::concepts {
         { worker.notify() } -> std::same_as<void>;
         { worker.start_shutdown() } -> std::same_as<void>;
         { worker.join() } -> std::same_as<void>;
+        { worker.request_stop() } -> std::same_as<void>;
         { worker.get_id() } -> std::same_as<std::jthread::id>;
     };
 } // namespace jzh::concepts
@@ -137,6 +138,8 @@ export namespace jzh {
         OptionalError stop_all();
         template<class Rep, class Period>
         OptionalError stop_all(const std::chrono::duration<Rep, Period>& timeout);
+
+        void instant_stop_all();
 
         void pause();
         void resume();
