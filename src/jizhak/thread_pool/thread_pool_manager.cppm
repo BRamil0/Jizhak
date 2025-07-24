@@ -128,7 +128,7 @@ export namespace jzh {
         std::expected<std::tuple<std::future<std::invoke_result_t<F, Args...>>, Task::id_t>, JizhakError>
         add_task(TaskInfo task_info, F&& func, Args&&... args);
 
-        OptionalError remove_task(Task::id_t task_id); // beta
+        OptionalError remove_task(Task::id_t task_id);
         OptionalError remove_task(Task::id_t task_id, std::jthread::id thread_id);
 
         void wait_all();

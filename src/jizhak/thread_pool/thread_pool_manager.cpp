@@ -7,7 +7,7 @@ import jizhak.thread_pool.this_tpm;
 
 namespace jzh {
     // ThreadPoolManager: protected
-    template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     std::jthread::id ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::create_worker() {
         auto worker_ptr = std::make_shared<TWorker>();
@@ -26,7 +26,7 @@ namespace jzh {
         return worker_ptr->get_id();
     }
 
-    template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     std::expected<std::vector<std::jthread::id>, JizhakError>
     ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::create_worker(unsigned int quantity) {
@@ -41,7 +41,7 @@ namespace jzh {
         return ids;
     }
 
-    template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     typename ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::OptionalError
     ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::stop_worker(std::jthread::id thread_id) {
@@ -49,13 +49,13 @@ namespace jzh {
 
         {
             std::scoped_lock lock(info_table_mutex_);
-
-            auto it = info_table_.find(thread_id);
+            auto it = std::find_if(info_table_.begin(), info_table_.end(),
+                [&](const auto& pair){ return pair.first.id == thread_id; });
 
             if (it == info_table_.end())
-                return JizhakError{JizhakErrorID::worker_not_found};
+                return JizhakError(JizhakErrorID::worker_not_found);
 
-            worker_to_stop = std::move(*it);
+            worker_to_stop = it->second.get_worker();
             info_table_.erase(it);
         }
 
@@ -65,7 +65,7 @@ namespace jzh {
         return std::nullopt;
     }
 
-    template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     std::expected<std::weak_ptr<TWorker>, JizhakError> ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::get_worker(std::jthread::id thread_id) {
         if (auto& it = info_table_.find(thread_id); it != info_table_.end())
@@ -74,7 +74,7 @@ namespace jzh {
         return std::unexpected<JizhakError>(JizhakErrorID::worker_not_found);
     }
 
-    template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     std::expected<std::weak_ptr<TWorker>, JizhakError>
     ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::get_worker_by_index(size_t index) override {
@@ -87,7 +87,7 @@ namespace jzh {
         return it->second.get_worker();
     }
 
-    template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     std::expected<Task::id_t, JizhakError> ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::create_task(Task& task, TaskInfo& task_info) {
         if (info_table_.empty())
@@ -114,41 +114,114 @@ namespace jzh {
         return task.id;
     }
 
-    template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     typename ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::OptionalError
-    ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::delete_task(Task::id_t task_id) {}
+    ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::delete_task(Task::id_t task_id) {
+        for (auto&& info : info_table_ | std::views::values)
+            if (auto& it = info.find(task_id); it != info.end())
+                return this->delete_task(task_id, it->second);
 
-    template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+        return JizhakError(JizhakErrorID::task_not_found);
+    }
+
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     typename ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::OptionalError
-    ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::delete_task(Task::id_t task_id, std::jthread::id thread_id) {}
+    ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::delete_task(Task::id_t task_id, std::jthread::id thread_id) {
+        auto it = std::find_if(info_table_.begin(), info_table_.end(),
+            [&](const auto& pair) {
+                return pair.first.id == thread_id;
+            });
+
+        if (it != info_table_.end())
+            return it->second.remove_task(task_id);
+
+        return JizhakError(JizhakErrorID::task_not_found);
+    }
 
 
-    template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     typename ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::OptionalError
-    ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::task_completed(Task::id_t task_id, std::jthread::id thread_id) override {}
+    ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::task_completed(Task::id_t task_id, std::jthread::id thread_id) {
+        std::scoped_lock lock(info_table_mutex_);
 
-    template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+        auto it = std::find_if(info_table_.begin(), info_table_.end(),
+            [&](const auto& pair) { return pair.first.id == thread_id; });
+
+        if (it == info_table_.end())
+            return JizhakError{JizhakErrorID::worker_not_found};
+
+        auto& info_table_obj = it->second;
+        info_table_obj.remove_task(task_id);
+
+        auto node = info_table_.extract(it);
+        --node.key().pending_tasks;
+        info_table_.insert(std::move(node));
+
+        if (pending_tasks_.fetch_sub(1) == 1)
+            wait_cv_.notify_all();
+
+        return std::nullopt;
+    }
+
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     typename ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::OptionalError
     ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::notify_steal_task(Task::id_t task_id,
-        std::jthread::id to_thread_id, std::jthread::id from_thread_id) override {}
+        std::jthread::id to_thread_id, std::jthread::id from_thread_id) {
 
-    template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+        std::scoped_lock lock(info_table_mutex_);
+
+        auto from_it = std::find_if(info_table_.begin(), info_table_.end(),
+            [&](const auto& pair) { return pair.first.id == from_thread_id; });
+
+        auto to_it = std::find_if(info_table_.begin(), info_table_.end(),
+            [&](const auto& pair) { return pair.first.id == to_thread_id; });
+
+        if (from_it == info_table_.end() || to_it == info_table_.end()) {
+            return JizhakError{JizhakErrorID::worker_not_found};
+        }
+
+        TaskInfo stolen_task_info;
+        if (auto task_opt = from_it->second.get_task_info(task_id)) {
+            stolen_task_info = *task_opt;
+            from_it->second.remove_task(task_id);
+        } else {
+            return JizhakError{JizhakErrorID::task_not_found};
+        }
+
+        to_it->second.add_task(stolen_task_info);
+
+        auto from_node = info_table_.extract(from_it);
+        --from_node.key().pending_tasks;
+        info_table_.insert(std::move(from_node));
+
+        auto to_it_new = std::find_if(info_table_.begin(), info_table_.end(),
+            [&](const auto& pair) { return pair.first.id == to_thread_id; });
+        if (to_it_new == info_table_.end()) return JizhakError{JizhakErrorID::internal_error};
+
+        auto to_node = info_table_.extract(to_it_new);
+        ++to_node.key().pending_tasks;
+        info_table_.insert(std::move(to_node));
+
+        return std::nullopt;
+    }
+
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     size_t ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::__number_workers() const override {
         return this->number_workers();
     }
 
-    template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     bool ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::__is_paused() const override {
         return this->is_paused();
     }
 
-    template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     std::expected<Task::id_t, JizhakError>
     ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::__add_task(Task& task, TaskInfo& task_info) {
@@ -157,7 +230,7 @@ namespace jzh {
     }
 
     // ThreadPoolManager: public
-    template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::ThreadPoolManager(unsigned int quantity) {
         std::scoped_lock lock(info_table_mutex_);
@@ -166,35 +239,35 @@ namespace jzh {
             throw std::runtime_error("Failed to create initial workers: " + result.error().message());
     }
 
-    template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::~ThreadPoolManager() override {
         if (!info_table_.empty())
             this->stop_all(std::chrono::minutes(10));
     }
 
-    template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     std::expected<const typename ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::InfoTable&, JizhakError>
     ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::operator[]() const {
         return this->get_info_table();
     }
 
-    template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     std::expected<const TInfoTable&, JizhakError>
     ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::operator[](std::jthread::id thread_id) const {
         return this->search_worker_for(thread_id);
     }
 
-    template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     std::expected<const TaskInfo, JizhakError>
     ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::operator[](const Task::id_t task_id) const {
         return this->search_task_for(task_id);
     }
 
-    template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     std::expected<Task::id_t, JizhakError> ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::operator()(Task& task, TaskInfo& task_info) {
         return this->create_task(task, task_info);
@@ -207,7 +280,7 @@ namespace jzh {
         return this->add_task(std::forward<std::tuple<Task, TaskInfo>>(task_bundle));
     }
 
-    template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     template <typename F, typename... Args>
     std::expected<std::tuple<std::future<std::invoke_result_t<F, Args...>>, Task::id_t>, JizhakError>
@@ -215,21 +288,21 @@ namespace jzh {
         return this->add_task(std::forward<F>(func), std::forward<Args>(args)...);
     }
 
-    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker> 
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     template <typename F, typename ... Args> std::expected<std::tuple<std::future<std::invoke_result_t<F, Args...>>, Task::id_t>, JizhakError>
     ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::operator()(TaskInfo task_info, F&& func, Args&&... args) {
         return this->add_task(std::forward<TaskInfo>(task_info), std::forward<F>(func), std::forward<Args>(args)...);
     }
 
-    template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     std::expected<std::jthread::id, JizhakError> ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::add_worker() {
         std::scoped_lock lock(info_table_mutex_);
         return this->create_worker();
     }
 
-    template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     typename ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::OptionalError
     ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::remove_worker(std::jthread::id thread_id) {
@@ -237,14 +310,14 @@ namespace jzh {
     }
 
 
-    template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     std::expected<Task::id_t, JizhakError> ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::add_task(Task& task, TaskInfo& task_info) {
         std::scoped_lock lock(info_table_mutex_);
         return this->create_task(task, task_info);
     }
 
-    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker> 
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     template <typename F, typename ... Args>
     std::expected<std::tuple<std::future<std::invoke_result_t<F, Args...>>, Task::id_t>, JizhakError>
@@ -259,7 +332,7 @@ namespace jzh {
        );
     }
 
-    template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     template <typename F, typename... Args>
     std::expected<std::tuple<std::future<std::invoke_result_t<F, Args...>>, Task::id_t>, JizhakError>
@@ -267,7 +340,7 @@ namespace jzh {
         return this->add_task(task_info_set_id(TaskInfo()), std::forward<F>(func), std::forward<Args>(args)...);
     }
 
-    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker> 
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     template <typename F, typename ... Args> std::expected<std::tuple<std::future<std::invoke_result_t<F, Args...>>, Task::id_t>, JizhakError>
     ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::add_task(TaskInfo task_info, F&& func, Args&&... args) {
@@ -292,18 +365,23 @@ namespace jzh {
     }
 
 
-    template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     typename ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::OptionalError
-    ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::remove_task(Task::id_t task_id) {}
+    ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::remove_task(Task::id_t task_id) {
+        std::scoped_lock lock(info_table_mutex_);
+        return this->delete_task(task_id);
+    }
 
-    template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     typename ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::OptionalError
-    ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::remove_task(Task::id_t task_id, std::jthread::id thread_id) {}
+    ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::remove_task(Task::id_t task_id, std::jthread::id thread_id) {
+        std::scoped_lock lock(info_table_mutex_);
+        return this->delete_task(task_id, thread_id);
+    }
 
-    template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
-    requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker>    requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     void ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::wait_all() {
         std::unique_lock lock(wait_mutex_);
 
@@ -313,7 +391,7 @@ namespace jzh {
     }
 
 
-    template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     template <class Rep, class Period>
     typename ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::OptionalError
@@ -328,7 +406,7 @@ namespace jzh {
         return JizhakError{JizhakErrorID::timeout_expired};
     }
 
-    template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     typename ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::OptionalError
     ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::stop_all() {
@@ -349,7 +427,7 @@ namespace jzh {
         return std::nullopt;
     }
 
-    template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     template <class Rep, class Period>
     typename ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::OptionalError
@@ -364,7 +442,7 @@ namespace jzh {
         throw std::runtime_error("Timeout expired during thread pool shutdown.");
     }
 
-    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker> 
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     void ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::instant_stop_all() {
         std::vector<std::shared_ptr<TWorker>> workers_to_join;
@@ -392,20 +470,20 @@ namespace jzh {
     }
 
 
-    template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     void ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::pause() {
         this->pause_ = true;
     }
 
-    template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     void ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::resume() {
         this->pause_ = false;
         this->notify_all();
     }
 
-    template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     void ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::notify_all() {
         std::scoped_lock lock(info_table_mutex_);
@@ -414,7 +492,7 @@ namespace jzh {
         }
     }
 
-    template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     void ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::notify(std::jthread::id thread_id) {
         std::scoped_lock lock(info_table_mutex_);
@@ -424,14 +502,14 @@ namespace jzh {
     }
 
 
-    template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     std::expected<const typename ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::InfoTable&, JizhakError>
     ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::get_info_table() const {
         return this->info_table_;
     }
 
-    template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     std::expected<const TInfoTable&, JizhakError>
     ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::search_worker_for(std::jthread::id thread_id) const {
@@ -444,39 +522,39 @@ namespace jzh {
         return std::unexpected(JizhakError{JizhakErrorID::worker_not_found});
     }
 
-    template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     std::expected<const TaskInfo, JizhakError>
     ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::search_task_for(Task::id_t task_id) const {
         std::scoped_lock lock(info_table_mutex_);
 
         for (auto&& info : info_table_ | std::views::values)
-            if (auto& it = std::find(info, task_id); it != info.end())
-                return it;
+            if (auto it = info.find_task(task_id); it != info.tasks().end())
+                return it->second;
 
         return std::unexpected(JizhakError{JizhakErrorID::task_not_found});
     }
 
-    template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     size_t ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::size() const {
         return this->number_workers();
     }
 
-    template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     size_t ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::number_tasks() const {
         return this->pending_tasks_;
     }
 
-    template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     size_t ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::number_workers() const {
         std::scoped_lock lock(info_table_mutex_);
         return this->info_table_.size();
     }
 
-    template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     [[nodiscard]] bool ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::is_there_task() const {
         if (this->pending_tasks_)
@@ -484,7 +562,7 @@ namespace jzh {
         return false;
     }
 
-    template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+    template <typename TInfoTable, typename TInfoSorter, typename TWorker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     [[nodiscard]] bool ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::is_paused() const {
         return this->pause_;
