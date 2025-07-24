@@ -242,8 +242,12 @@ namespace jzh {
     template <typename TInfoTable, typename TInfoSorter, typename TWorker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::~ThreadPoolManager() override {
-        if (!info_table_.empty())
+        try {
             this->stop_all(std::chrono::minutes(10));
+        }
+        catch (...) {
+            this->instant_stop_all();
+        }
     }
 
     template <typename TInfoTable, typename TInfoSorter, typename TWorker>
