@@ -20,10 +20,15 @@ export namespace jzh::concepts {
 
     template <typename TWorker>
     concept is_supported_worker = requires(TWorker worker, jzh::Task task) {
+        requires std::is_base_of_v<jzh::BaseWorker, TWorker>;
         requires std::default_initializable<TWorker>;
 
         { worker.start(std::function<void(std::stop_token)>()) } -> std::same_as<void>;
         { worker.add_task(task) } -> std::same_as<void>;
+        { worker.notify() } -> std::same_as<void>;
+        { worker.start_shutdown() } -> std::same_as<void>;
+        { worker.join() } -> std::same_as<void>;
+        { worker.get_id() } -> std::same_as<std::jthread::id>;
     };
 } // namespace jzh::concepts
 

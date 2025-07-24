@@ -245,12 +245,13 @@ namespace jzh {
 
     template <typename TInfoTable, typename TInfoSorter, typename TWorker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
-    template <typename F, typename ... Args> std::expected<std::tuple<std::future<std::invoke_result_t<F, Args...>>,
-    Task::id_t>, JizhakError>
+    template <typename F, typename ... Args>
+    std::expected<std::tuple<std::future<std::invoke_result_t<F, Args...>>, Task::id_t>, JizhakError>
     ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::add_task(std::tuple<Task, TaskInfo> task_bundle) {
+        std::scoped_lock lock(info_table_mutex_);
+
         return std::apply(
            [this](Task& task, TaskInfo& task_info) {
-               std::scoped_lock lock(info_table_mutex_);
                return this->create_task(task, task_info);
            },
            task_bundle
@@ -442,7 +443,7 @@ namespace jzh {
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     size_t ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>::number_workers() const {
         std::scoped_lock lock(info_table_mutex_);
-        return this->workers_.size();
+        return this->info_table_.size();
     }
 
     template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
