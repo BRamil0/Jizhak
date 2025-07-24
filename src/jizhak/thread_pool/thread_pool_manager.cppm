@@ -159,4 +159,12 @@ export namespace jzh {
         [[nodiscard]] bool is_there_task() const;
         [[nodiscard]] bool is_paused() const;
     };
+
+    std::shared_ptr<ThreadPoolManager<auto>> new_tpm() {
+        return std::make_shared<ThreadPoolManager<auto>>{};
+    }
+
+    std::shared_ptr<ThreadPoolManager<auto>> new_tpm(unsigned int quantity) {
+        return std::make_shared<ThreadPoolManager<auto>>{quantity};
+    }
 } // namespace jzh
