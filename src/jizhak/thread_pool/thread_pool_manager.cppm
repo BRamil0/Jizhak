@@ -295,18 +295,17 @@ export namespace jzh {
 
         template <typename F, typename... Args>
         std::expected<std::tuple<std::future<std::invoke_result_t<F, Args...>>, Task::id_t>, JizhakError>
-        operator()(F&& func, Args&&... args) {
-            return this->add_task(std::forward<F>(func), std::forward<Args>(args)...);
-        }
-
-
-        template <typename F, typename... Args>
-        std::expected<std::tuple<std::future<std::invoke_result_t<F, Args...>>, Task::id_t>, JizhakError>
         operator()(TaskInfo task_info, F&& func, Args&&... args) {
             return this->add_task(std::forward<TaskInfo>(task_info), std::forward<F>(func),
                                   std::forward<Args>(args)...);
         }
 
+        template <typename F, typename... Args>
+        requires(!std::is_same_v<std::decay_t<F>, TaskInfo>)
+        std::expected<std::tuple<std::future<std::invoke_result_t<F, Args...>>, Task::id_t>, JizhakError>
+        operator()(F&& func, Args&&... args) {
+            return this->add_task(std::forward<F>(func), std::forward<Args>(args)...);
+        }
 
         std::expected<std::jthread::id, JizhakError> add_worker() {
             std::scoped_lock lock(info_table_mutex_);
@@ -330,23 +329,15 @@ export namespace jzh {
         }
 
 
-        template <typename F, typename... Args> std::expected<
-            std::tuple<std::future<std::invoke_result_t<F, Args...>>, Task::id_t>, JizhakError> add_task(
-            std::tuple<Task, TaskInfo> task_bundle) {
+        template <typename F, typename... Args>
+        std::expected<std::tuple<std::future<std::invoke_result_t<F, Args...>>, Task::id_t>, JizhakError>
+        add_task(std::tuple<Task, TaskInfo> task_bundle) {
             std::scoped_lock lock(info_table_mutex_);
 
             return std::apply([this](Task& task, TaskInfo& task_info) {
                 return this->create_task(task, task_info);
             }, task_bundle);
         }
-
-
-        template <typename F, typename... Args>
-        std::expected<std::tuple<std::future<std::invoke_result_t<F, Args...>>, Task::id_t>, JizhakError>
-        add_task(F&& func, Args&&... args) {
-            return this->add_task(task_info_set_id(TaskInfo()), std::forward<F>(func), std::forward<Args>(args)...);
-        }
-
 
         template <typename F, typename... Args>
         std::expected<std::tuple<std::future<std::invoke_result_t<F, Args...>>, Task::id_t>, JizhakError>
@@ -371,6 +362,12 @@ export namespace jzh {
             return std::make_tuple(std::move(future_result), new_task_info.id);
         }
 
+        template <typename F, typename... Args>
+        requires(!std::is_same_v<std::decay_t<F>, TaskInfo>)
+        std::expected<std::tuple<std::future<std::invoke_result_t<F, Args...>>, Task::id_t>, JizhakError>
+        add_task(F&& func, Args&&... args) {
+            return this->add_task(task_info_set_id(TaskInfo()), std::forward<F>(func), std::forward<Args>(args)...);
+        }
 
         OptionalError remove_task(Task::id_t task_id) {
             std::scoped_lock lock(info_table_mutex_);
