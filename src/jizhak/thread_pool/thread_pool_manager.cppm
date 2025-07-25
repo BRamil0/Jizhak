@@ -39,6 +39,10 @@ export namespace jzh {
         using InfoTable     = std::map<TInfoSorter, TInfoTable>;
         using OptionalError = std::optional<JizhakError>;
 
+        using TInfoTable_T  = TInfoTable;
+        using TInfoSorter_T = TInfoSorter;
+        using TWorker_T     = TWorker;
+
     private:
         InfoTable info_table_{};
 
@@ -263,48 +267,6 @@ export namespace jzh {
             catch (...) {
                 this->instant_stop_all();
             }
-        }
-
-
-        std::expected<const InfoTable&, JizhakError> operator[]() const {
-            return this->get_info_table();
-        }
-
-
-        std::expected<const TInfoTable&, JizhakError> operator[](std::jthread::id thread_id) const {
-            return this->search_worker_for(thread_id);
-        }
-
-
-        std::expected<const TaskInfo, JizhakError> operator[](const Task::id_t task_id) const {
-            return this->search_task_for(task_id);
-        }
-
-
-        std::expected<Task::id_t, JizhakError> operator()(Task& task, TaskInfo& task_info) {
-            return this->create_task(task, task_info);
-        }
-
-
-        template <typename F, typename... Args>
-        std::expected<std::tuple<std::future<std::invoke_result_t<F, Args...>>, Task::id_t>, JizhakError>
-        operator()(std::tuple<Task, TaskInfo> task_bundle) {
-            return this->add_task(std::forward<std::tuple<Task, TaskInfo>>(task_bundle));
-        }
-
-
-        template <typename F, typename... Args>
-        std::expected<std::tuple<std::future<std::invoke_result_t<F, Args...>>, Task::id_t>, JizhakError>
-        operator()(TaskInfo task_info, F&& func, Args&&... args) {
-            return this->add_task(std::forward<TaskInfo>(task_info), std::forward<F>(func),
-                                  std::forward<Args>(args)...);
-        }
-
-        template <typename F, typename... Args>
-        requires(!std::is_same_v<std::decay_t<F>, TaskInfo>)
-        std::expected<std::tuple<std::future<std::invoke_result_t<F, Args...>>, Task::id_t>, JizhakError>
-        operator()(F&& func, Args&&... args) {
-            return this->add_task(std::forward<F>(func), std::forward<Args>(args)...);
         }
 
         std::expected<std::jthread::id, JizhakError> add_worker() {
@@ -540,13 +502,62 @@ export namespace jzh {
         }
     };
 
-    using DefaultThreadPoolManager = ThreadPoolManager<>;
+    template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+    requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
+    struct TPM {
+        using DefaultThreadPoolManager = ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>;
 
-    inline std::shared_ptr<DefaultThreadPoolManager> new_tpm() {
-        return std::make_shared<DefaultThreadPoolManager>();
+        std::shared_ptr<DefaultThreadPoolManager> tpm_ptr{};
+
+        TPM() = default;
+
+        explicit TPM(unsigned int quantity) : tpm_ptr(std::make_shared<DefaultThreadPoolManager>(quantity)) {}
+
+        DefaultThreadPoolManager* operator->() const {
+            return tpm_ptr.operator->();
+        }
+
+        std::expected<const typename DefaultThreadPoolManager::InfoTable&, JizhakError> operator[]() const {
+            return tpm_ptr->get_info_table();
+        }
+
+        std::expected<const TInfoTable&, JizhakError> operator[](std::jthread::id thread_id) const {
+            return tpm_ptr->search_worker_for(thread_id);
+        }
+
+        std::expected<const TaskInfo, JizhakError> operator[](const Task::id_t task_id) const {
+            return tpm_ptr->search_task_for(task_id);
+        }
+
+        std::expected<Task::id_t, JizhakError> operator()(Task& task, TaskInfo& task_info) const {
+            return tpm_ptr->add_task(task, task_info);
+        }
+
+        template <typename F, typename... Args>
+        std::expected<std::tuple<std::future<std::invoke_result_t<F, Args...>>, Task::id_t>, JizhakError>
+        operator()(std::tuple<Task, TaskInfo> task_bundle) {
+            return tpm_ptr->add_task(std::forward<std::tuple<Task, TaskInfo>>(task_bundle));
+        }
+
+        template <typename F, typename... Args>
+        std::expected<std::tuple<std::future<std::invoke_result_t<F, Args...>>, Task::id_t>, JizhakError>
+        operator()(TaskInfo task_info, F&& func, Args&&... args) {
+            return tpm_ptr->add_task(std::forward<TaskInfo>(task_info), std::forward<F>(func), std::forward<Args>(args)...);
+        }
+
+        template <typename F, typename... Args>
+        requires(!std::is_same_v<std::decay_t<F>, TaskInfo>)
+        std::expected<std::tuple<std::future<std::invoke_result_t<F, Args...>>, Task::id_t>, JizhakError>
+        operator()(F&& func, Args&&... args) {
+            return tpm_ptr->add_task(std::forward<F>(func), std::forward<Args>(args)...);
+        }
+    };
+
+    inline TPM<> make_tpm() {
+        return {};
     }
 
-    inline std::shared_ptr<DefaultThreadPoolManager> new_tpm(unsigned int quantity) {
-        return std::make_shared<DefaultThreadPoolManager>(quantity);
+    inline TPM<> make_tpm(unsigned int quantity) {
+        return TPM(quantity);
     }
 } // namespace jzh
