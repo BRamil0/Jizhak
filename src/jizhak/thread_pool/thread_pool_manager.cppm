@@ -61,9 +61,7 @@ export namespace jzh {
             };
             worker_ptr->start(std::move(work_function));
 
-            {
-                std::scoped_lock lock(info_table_mutex_);
-                this->info_table_.emplace(TInfoSorter{ .id = worker_ptr->get_id() }, worker_ptr);         }
+            this->info_table_.emplace(TInfoSorter{ .id = worker_ptr->get_id() }, worker_ptr);
 
             return worker_ptr->get_id();
         }
@@ -122,7 +120,7 @@ export namespace jzh {
 
         std::expected<Task::id_t, JizhakError> create_task(Task& task, TaskInfo& task_info) {
             if (info_table_.empty())
-                return std::unexpected(JizhakError(JizhakErrorID::no_workers_available));
+                throw std::runtime_error("no workers available");
 
             if (task.id != task_info.id)
                 return std::unexpected(JizhakError(JizhakErrorID::identifiers_are_different));
@@ -248,10 +246,8 @@ export namespace jzh {
         explicit ThreadPoolManager() = default;
 
         explicit ThreadPoolManager(unsigned int quantity) {
-            std::scoped_lock lock(info_table_mutex_);
-            auto result = this->create_worker(quantity);
-            if (!result)
-                throw std::runtime_error(std::string("Failed to create initial workers: ") + std::string(result.error().what()));
+            if (auto result = this->add_worker(quantity); !result)
+                throw std::runtime_error("Failed to create initial workers: " + std::string(result.error().what()));
         }
 
         ThreadPoolManager(const ThreadPoolManager&) = delete;
@@ -315,6 +311,11 @@ export namespace jzh {
         std::expected<std::jthread::id, JizhakError> add_worker() {
             std::scoped_lock lock(info_table_mutex_);
             return this->create_worker();
+        }
+
+        std::expected<std::vector<std::jthread::id>, JizhakError> add_worker(unsigned int quantity) {
+            std::scoped_lock lock(info_table_mutex_);
+            return this->create_worker(quantity);
         }
 
 

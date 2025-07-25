@@ -11,9 +11,8 @@ namespace jzh {
 
     // BaseWorker: protected
     void BaseWorker::run_loop(std::stop_token token) {
-        const auto locked_tpm_ptr = this_thread::get_tpm().lock();
-        if (!locked_tpm_ptr) return;
-        ThreadPoolManagerBase* tpm = locked_tpm_ptr.get();
+        auto tpm = this_thread::get_tpm().lock();
+        if (!tpm) return;
 
         while (true) {
             Task task_to_run;
@@ -31,7 +30,10 @@ namespace jzh {
                 if (tasks.empty() && !is_shutdown.load()) {
                     lock.unlock();
 
-                    if (!steal_task()) continue;
+                    if (!steal_task()) {
+                        lock.lock();
+                        continue;
+                    };
 
                     lock.lock();
                     continue;
@@ -47,12 +49,9 @@ namespace jzh {
             if (task_to_run.function) {
                 if (task_to_run.function) {
                     try {
-                        task_to_run(); // Виконуємо завдання
+                        task_to_run();
                     } catch (const std::exception& e) {
-                        // Можна додати логування помилки
-                        // jzh::ceio.println("Task {} failed with exception: {}", task_id_for_completion, e.what());
                     } catch (...) {
-                        // jzh::ceio.println("Task {} failed with unknown exception.", task_id_for_completion);
                     }
                     tpm->task_completed(task_id_for_completion, this->id);
                 }
