@@ -41,7 +41,7 @@ export namespace jzh::this_thread {
 
     template <typename F, typename... Args>
     std::expected<std::tuple<std::future<std::invoke_result_t<F, Args...>>, Task::id_t>, JizhakError>
-    Tadd_task(F&& func, Args&&... args) {
+    add_task(F&& func, Args&&... args) {
         return add_task(task_info_set_id(TaskInfo()), std::forward<F>(func), std::forward<Args>(args)...);
     }
 
