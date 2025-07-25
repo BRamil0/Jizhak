@@ -28,8 +28,12 @@ export namespace jzh {
 
     struct TaskInfo {
         Task::id_t id{};
+
         std::chrono::seconds timeout = std::chrono::seconds::zero();
         long long priority = 0;
+        std::jthread::id worker_id{};
+
+        bool is_task_completed = false;
         bool is_async = false;
 
         TaskInfo() = default;

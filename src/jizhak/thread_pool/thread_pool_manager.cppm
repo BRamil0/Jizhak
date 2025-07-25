@@ -29,7 +29,7 @@ export namespace jzh::concepts {
 } // namespace jzh::concepts
 
 export namespace jzh {
-    template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+    template <typename TInfoTable = InformationWorkerTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     class ThreadPoolManager : public ThreadPoolManagerBase,
                               public std::enable_shared_from_this<ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>> {
@@ -502,7 +502,7 @@ export namespace jzh {
         }
     };
 
-    template <typename TInfoTable = InformationTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+    template <typename TInfoTable = InformationWorkerTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
     requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
     struct TPM {
         using DefaultThreadPoolManager = ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>;

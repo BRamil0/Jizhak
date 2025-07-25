@@ -6,7 +6,7 @@ import jizhak.thread_pool.task;
 import jizhak.thread_pool.worker;
 
 export namespace jzh {
-    struct InformationTable {
+    struct InformationWorkerTable {
     private:
         std::shared_ptr<BaseWorker> worker_ptr_{};
 
@@ -18,11 +18,11 @@ export namespace jzh {
         mutable std::mutex mutex_{};
 
     public:
-        InformationTable() = default;
+        InformationWorkerTable() = default;
 
-        explicit InformationTable(const std::shared_ptr<BaseWorker>& worker_ptr) : worker_ptr_(worker_ptr) {}
+        explicit InformationWorkerTable(const std::shared_ptr<BaseWorker>& worker_ptr) : worker_ptr_(worker_ptr) {}
 
-        explicit InformationTable(const std::shared_ptr<BaseWorker>& worker_ptr, const TaskInfo& task)
+        explicit InformationWorkerTable(const std::shared_ptr<BaseWorker>& worker_ptr, const TaskInfo& task)
             : worker_ptr_(worker_ptr) {
             add_task(task);
         }
