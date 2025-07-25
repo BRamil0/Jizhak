@@ -29,17 +29,17 @@ export namespace jzh::concepts {
 } // namespace jzh::concepts
 
 export namespace jzh {
-    template <typename TInfoTable = InformationWorkerTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
-    requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
+    template <typename TInfoWorkerTable = InformationWorkerTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+    requires (concepts::is_supported_info_table<TInfoWorkerTable, TWorker> && concepts::is_supported_worker<TWorker>)
     class ThreadPoolManager : public ThreadPoolManagerBase,
-                              public std::enable_shared_from_this<ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>> {
+                              public std::enable_shared_from_this<ThreadPoolManager<TInfoWorkerTable, TInfoSorter, TWorker>> {
     public:
         friend class BaseWorker;
 
-        using InfoTable     = std::map<TInfoSorter, TInfoTable>;
+        using InfoTable     = std::map<TInfoSorter, TInfoWorkerTable>;
         using OptionalError = std::optional<JizhakError>;
 
-        using TInfoTable_T  = TInfoTable;
+        using TInfoTable_T  = TInfoWorkerTable;
         using TInfoSorter_T = TInfoSorter;
         using TWorker_T     = TWorker;
 
@@ -132,7 +132,7 @@ export namespace jzh {
             auto first_entry_iterator = info_table_.begin();
 
             auto node_handle           = info_table_.extract(first_entry_iterator);
-            TInfoTable& info_table_obj = node_handle.mapped();
+            TInfoWorkerTable& info_table_obj = node_handle.mapped();
 
             ++node_handle.key().pending_tasks;
 
@@ -456,7 +456,7 @@ export namespace jzh {
         }
 
 
-        std::expected<const TInfoTable&, JizhakError> search_worker_for(std::jthread::id thread_id) const {
+        std::expected<const TInfoWorkerTable&, JizhakError> search_worker_for(std::jthread::id thread_id) const {
             std::scoped_lock lock(info_table_mutex_);
 
             for (const auto& pair : info_table_) if (pair.first.id == thread_id) return pair.second;
@@ -502,10 +502,10 @@ export namespace jzh {
         }
     };
 
-    template <typename TInfoTable = InformationWorkerTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
-    requires (concepts::is_supported_info_table<TInfoTable, TWorker> && concepts::is_supported_worker<TWorker>)
+    template <typename TInfoWorkerTable = InformationWorkerTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+    requires (concepts::is_supported_info_table<TInfoWorkerTable, TWorker> && concepts::is_supported_worker<TWorker>)
     struct TPM {
-        using DefaultThreadPoolManager = ThreadPoolManager<TInfoTable, TInfoSorter, TWorker>;
+        using DefaultThreadPoolManager = ThreadPoolManager<TInfoWorkerTable, TInfoSorter, TWorker>;
 
         std::shared_ptr<DefaultThreadPoolManager> tpm_ptr{};
 
@@ -521,7 +521,7 @@ export namespace jzh {
             return tpm_ptr->get_info_table();
         }
 
-        std::expected<const TInfoTable&, JizhakError> operator[](std::jthread::id thread_id) const {
+        std::expected<const TInfoWorkerTable&, JizhakError> operator[](std::jthread::id thread_id) const {
             return tpm_ptr->search_worker_for(thread_id);
         }
 
