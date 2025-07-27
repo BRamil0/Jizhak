@@ -1,4 +1,4 @@
-export module jizhak.thread_pool.info;
+export module jizhak_.thread_pool_.utilities_tpm;
 
 import std;
 import jizhak.error;
@@ -13,7 +13,7 @@ export namespace jzh {
         size_t total_tasks_ = 0;
         size_t async_tasks_ = 0;
 
-        std::map<Task::id_t, TaskInfo> tasks_{};
+        std::map<Task::id_t, TaskPointer> tasks_{};
 
         mutable std::mutex mutex_{};
 
@@ -22,7 +22,7 @@ export namespace jzh {
 
         explicit InformationWorkerTable(const std::shared_ptr<BaseWorker>& worker_ptr) : worker_ptr_(worker_ptr) {}
 
-        explicit InformationWorkerTable(const std::shared_ptr<BaseWorker>& worker_ptr, const TaskInfo& task)
+        explicit InformationWorkerTable(const std::shared_ptr<BaseWorker>& worker_ptr, const TaskPointer& task)
             : worker_ptr_(worker_ptr) {
             add_task(task);
         }
@@ -33,11 +33,11 @@ export namespace jzh {
             return *worker_ptr_;
         }
 
-        const TaskInfo& operator[](const Task::id_t id) const {
+        const TaskPointer& operator[](const Task::id_t id) const {
             return tasks_.at(id);
         }
 
-        void operator()(const TaskInfo& task) {
+        void operator()(const TaskPointer& task) {
             return this->add_task(task);
         }
 
@@ -45,12 +45,12 @@ export namespace jzh {
             return this->remove_task(id);
         }
 
-        void add_task(const TaskInfo& task) {
+        void add_task(const TaskPointer& task) {
             std::scoped_lock lock(mutex_);
 
             ++total_tasks_;
-            if (task.is_async) ++async_tasks_;
-            this->tasks_[task.id] = task;
+            if (task->task_info.is_async) ++async_tasks_;
+            this->tasks_[task->task_info.id] = task;
         }
 
         std::optional<JizhakError> remove_task(const Task::id_t id) {
@@ -58,14 +58,14 @@ export namespace jzh {
 
             if (const auto it = tasks_.find(id); it != tasks_.end()) {
                 --total_tasks_;
-                if (it->second.is_async) --async_tasks_;
+                if (it->second->task_info.is_async) --async_tasks_;
                 tasks_.erase(it);
                 return std::nullopt;
             }
             return JizhakError(JizhakErrorID::task_not_found);
         }
 
-        [[nodiscard]] std::optional<TaskInfo> get_task_info(Task::id_t id) const {
+        [[nodiscard]] std::optional<TaskPointer> get_task(Task::id_t id) const {
             std::scoped_lock lock(mutex_);
 
             const auto it = tasks_.find(id);
@@ -117,7 +117,7 @@ export namespace jzh {
             worker_ptr_ = worker_ptr;
         }
 
-        [[nodiscard]] const std::map<Task::id_t, TaskInfo>& tasks() const {
+        [[nodiscard]] const std::map<Task::id_t, TaskPointer>& tasks() const {
             return tasks_;
         }
     };
