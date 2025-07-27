@@ -8,7 +8,7 @@ import jizhak.thread_pool.worker;
 export namespace jzh {
     struct GlobalTaskRegistry {
     protected:
-        std::map<Task::id_t, TaskPointer> tasks_{};
+        std::unordered_map<Task::id_t, TaskPointer> tasks_{};
 
         mutable std::mutex mutex_{};
 
