@@ -18,7 +18,7 @@ export namespace jzh {
     struct TaskInfoField {
         std::chrono::seconds timeout = std::chrono::seconds::zero();
         long long priority = 0;
-        std::jthread::id worker_id{};
+        std::jthread::id performer_worker_id{};
         bool is_async = false;
     };
 
@@ -36,7 +36,9 @@ export namespace jzh {
 
         std::chrono::seconds timeout = std::chrono::seconds::zero();
         long long priority = 0;
-        std::jthread::id worker_id{};
+
+        std::jthread::id performer_worker_id{};
+        std::jthread::id current_thread_id{};
 
         bool is_async = false;
 
@@ -54,14 +56,14 @@ export namespace jzh {
             id(get_new_id()),
             timeout(timeout),
             priority(priority),
-            worker_id(worker_id),
+            performer_worker_id(worker_id),
             is_async(is_async) {}
 
         explicit TaskInfo(const TaskInfoField& task_info_field) :
             id(get_new_id()),
             timeout(task_info_field.timeout),
             priority(task_info_field.priority),
-            worker_id(task_info_field.worker_id),
+            performer_worker_id(task_info_field.performer_worker_id),
             is_async(task_info_field.is_async) {}
     };
 
