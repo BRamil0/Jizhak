@@ -62,13 +62,13 @@ export namespace jzh {
                     tasks_.erase(it);;
         }
 
-
-        [[nodiscard]] virtual auto find_task(const Task::id_t id) {
+        [[nodiscard]] virtual std::unordered_map<unsigned long long, TaskPointer>::iterator find_task(const Task::id_t id) {
             std::scoped_lock lock(mutex_);
             return tasks_.find(id);
         }
 
-        [[nodiscard]] virtual auto find_task(const Task::id_t id) const {
+        [[nodiscard]] virtual std::unordered_map<unsigned long long, TaskPointer>::const_iterator find_task(
+            const Task::id_t id) const {
             std::scoped_lock lock(mutex_);
             return tasks_.find(id);
         }
@@ -191,10 +191,10 @@ export namespace jzh {
         }
     };
 
-    struct InformationSorter {
+    struct InformationWorkerTableSorter {
         size_t pending_tasks{};
         std::jthread::id id{};
 
-        auto operator<=>(const InformationSorter& other) const = default;
+        auto operator<=>(const InformationWorkerTableSorter& other) const = default;
     };
 }
