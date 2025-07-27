@@ -15,8 +15,7 @@ namespace jzh {
         if (!tpm) return;
 
         while (true) {
-            Task task_to_run;
-            Task::id_t task_id_for_completion = 0;
+            TaskPointer task_to_run;
             {
                 std::unique_lock lock(queue_mutex);
                 cv.wait(lock, [this, &token, tpm] {
@@ -42,20 +41,30 @@ namespace jzh {
                 if (!tasks.empty()) {
                     task_to_run = std::move(tasks.front());
                     tasks.pop_front();
-                    task_id_for_completion = task_to_run.id;
                 }
             }
 
-            if (task_to_run.function) {
-                if (task_to_run.function) {
-                    try {
-                        task_to_run();
-                    } catch (const std::exception& e) {
-                    } catch (...) {
-                    }
-                    tpm->task_completed(task_id_for_completion, this->id);
+            if (task_to_run->function) {
+                try {
+                    if (auto result = task_to_run(); result.has_value()) {
+                        task_to_run->task_info.status = TaskStatus::completed_with_error;
+                        task_to_run->task_info.error = std::make_exception_ptr<JizhakError>(result.value());
+                    } else
+                        task_to_run->task_info.status = TaskStatus::completed;
+
+                } catch (const std::exception& e) {
+                    task_to_run->task_info.status = TaskStatus::error;
+                    task_to_run->task_info.error = std::current_exception();
+
+                } catch (...) {
+                    task_to_run->task_info.status = TaskStatus::error_no_exception;
+                    task_to_run->task_info.error = std::current_exception();
+
                 }
+
+                tpm->task_completed(task_to_run->task_info.id, this->id);
             }
+
         }
     }
 
@@ -69,10 +78,10 @@ namespace jzh {
         this->id = thread.get_id();
     }
 
-    void BaseWorker::add_task(Task new_task) {
+    void BaseWorker::add_task(const TaskPointer& new_task) {
         {
             std::scoped_lock lock(queue_mutex);
-            tasks.push_back(std::move(new_task));
+            tasks.push_back(new_task);
         }
         cv.notify_one();
     }
@@ -96,7 +105,7 @@ namespace jzh {
         thread.request_stop();
     }
 
-    std::optional<std::deque<Task>> BaseWorker::yield_half_of_tasks() {
+    std::optional<std::deque<TaskPointer>> BaseWorker::yield_half_of_tasks() {
         std::scoped_lock lock(queue_mutex);
 
         size_t tasks_to_steal = tasks.size() / 2;
@@ -106,7 +115,7 @@ namespace jzh {
         if (tasks_to_steal == 0)
             return std::nullopt;
 
-        std::deque<Task> stolen_tasks;
+        std::deque<TaskPointer> stolen_tasks;
 
         for([[maybe_unused]] size_t _ : std::ranges::iota_view{0uz, tasks_to_steal}) {
             stolen_tasks.push_back(std::move(tasks.front()));
@@ -145,19 +154,15 @@ namespace jzh {
             if (auto weak_victim = tpm->get_worker_by_index(victim_index); weak_victim.has_value()) {
                 if (const auto shared_victim = weak_victim.value().lock()) {
                     if (shared_victim && shared_victim->get_id() != this->get_id()) {
-
-                        // <--- ЗМІНА №5: Прибираємо const тут
                         if (auto stolen_tasks_opt = shared_victim->yield_half_of_tasks()) {
                             if (!stolen_tasks_opt->empty()) {
                                 const auto victim_id = shared_victim->get_id();
-
+                                for (const auto& task : *stolen_tasks_opt)
+                                    tpm->notify_steal_task(task->task_info.id, this->get_id(), victim_id);
                                 {
                                     std::scoped_lock lock(this->queue_mutex);
-                                    // <--- ... і об'єднуємо цикли в один
-                                    for (auto& task : *stolen_tasks_opt) {
-                                        tpm->notify_steal_task(task.id, this->get_id(), victim_id);
+                                    for (auto& task : *stolen_tasks_opt)
                                         this->tasks.push_back(std::move(task));
-                                    }
                                 }
                                 return std::nullopt;
                             }

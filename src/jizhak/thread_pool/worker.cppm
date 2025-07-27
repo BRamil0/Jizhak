@@ -20,7 +20,7 @@ export namespace jzh {
         std::condition_variable cv{};
         std::atomic<bool> is_shutdown = false;
     protected:
-        std::deque<Task> tasks{};
+        std::deque<TaskPointer> tasks{};
         mutable std::mutex queue_mutex{};
 
         void run_loop(std::stop_token token);
@@ -39,7 +39,7 @@ export namespace jzh {
 
         void start(std::function<void(std::stop_token)> work_function);
 
-        void add_task(Task new_task);
+        void add_task(const TaskPointer& new_task);
 
         void notify();
 
@@ -49,7 +49,7 @@ export namespace jzh {
 
         void instant_stop();
 
-        virtual std::optional<std::deque<Task>> yield_half_of_tasks();
+        virtual std::optional<std::deque<TaskPointer>> yield_half_of_tasks();
 
         [[nodiscard]] size_t size() const;
 

@@ -10,6 +10,7 @@ export namespace jzh {
         completed,
         completed_with_error,
         error,
+        error_no_exception,
         in_progress,
         waiting,
         none,
