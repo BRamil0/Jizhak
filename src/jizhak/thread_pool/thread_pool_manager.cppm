@@ -9,42 +9,49 @@ export import jizhak.thread_pool.this_thread;
 export import jizhak.error;
 
 export namespace jzh::concepts {
-    template <typename TInfoTable, typename TWorker> concept is_supported_info_table = requires(
-        TInfoTable table, const jzh::TaskInfo& task_info, const std::shared_ptr<TWorker>& worker_ptr) {
-        { TInfoTable(worker_ptr, task_info) };
-        { table.add_task(task_info) } -> std::same_as<void>;
-        { table.remove_task(task_info.id) } -> std::same_as<std::optional<jzh::JizhakError>>;
-        { table.get_worker() } -> std::same_as<std::shared_ptr<jzh::BaseWorker>>;
-        { table.operator->() } -> std::same_as<jzh::BaseWorker&>;
+    template <typename TInfoWorkerTable, typename TWorker> concept is_supported_info_table = requires(
+    TInfoWorkerTable table, TaskPointer task, std::shared_ptr<TWorker> worker_ptr) {
+        { TInfoWorkerTable(worker_ptr) };
+        { table.add_task(task) } -> std::same_as<void>;
+        { table.remove_task(task->task_info.id) } -> std::same_as<std::optional<JizhakError>>;
+        { table.get_worker() } -> std::same_as<std::shared_ptr<BaseWorker>>;
+        { table.operator->() } -> std::same_as<BaseWorker&>;
         };
 
-    template <typename TWorker> concept is_supported_worker = requires(TWorker worker, jzh::Task task) {
-        requires std::is_base_of_v<jzh::BaseWorker, TWorker>; requires std::default_initializable<TWorker>;
+    template <typename TWorker> concept is_supported_worker = requires(TWorker worker, Task task) {
+        requires std::is_base_of_v<BaseWorker, TWorker>;
+        requires std::default_initializable<TWorker>;
         { worker.start(std::function<void(std::stop_token)>()) } -> std::same_as<void>;
-        { worker.add_task(std::move(task)) } -> std::same_as<void>;
-        { worker.notify() } -> std::same_as<void>; { worker.start_shutdown() } -> std::same_as<void>;
-        { worker.join() } -> std::same_as<void>; { worker.instant_stop() } -> std::same_as<void>;
+        { worker.add_task(task) } -> std::same_as<void>;
+        { worker.notify() } -> std::same_as<void>;
+        { worker.start_shutdown() } -> std::same_as<void>;
+        { worker.join() } -> std::same_as<void>;
+        { worker.instant_stop() } -> std::same_as<void>;
         { worker.get_id() } -> std::same_as<std::jthread::id>;
     };
 } // namespace jzh::concepts
 
 export namespace jzh {
-    template <typename TInfoWorkerTable = InformationWorkerTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+    template <typename TInfoWorkerTable    = InformationWorkerTable,
+              typename TGlobalTaskRegistry = GlobalTaskRegistry,
+              typename TWorkerTableSorter  = InformationWorkerTableSorter,
+              typename TWorker             = Worker>
     requires (concepts::is_supported_info_table<TInfoWorkerTable, TWorker> && concepts::is_supported_worker<TWorker>)
     class ThreadPoolManager : public ThreadPoolManagerBase,
-                              public std::enable_shared_from_this<ThreadPoolManager<TInfoWorkerTable, TInfoSorter, TWorker>> {
+                              public std::enable_shared_from_this<ThreadPoolManager<TInfoWorkerTable, TGlobalTaskRegistry, TWorkerTableSorter, TWorker>> {
     public:
         friend class BaseWorker;
 
-        using InfoTable     = std::map<TInfoSorter, TInfoWorkerTable>;
+        using WorkerTable   = std::map<TWorkerTableSorter, TInfoWorkerTable>;
         using OptionalError = std::optional<JizhakError>;
 
-        using TInfoTable_T  = TInfoWorkerTable;
-        using TInfoSorter_T = TInfoSorter;
-        using TWorker_T     = TWorker;
+        using TInfoWorkerTable_T    = TInfoWorkerTable;
+        using TGlobalTaskRegistry_T = TGlobalTaskRegistry;
+        using TWorkerTableSorter_T  = TWorkerTableSorter;
+        using TWorker_T             = TWorker;
 
     private:
-        InfoTable info_table_{};
+        WorkerTable worker_table_{};
 
         std::atomic<size_t> pending_tasks_{0};
 
@@ -65,7 +72,7 @@ export namespace jzh {
             };
             worker_ptr->start(std::move(work_function));
 
-            this->info_table_.emplace(TInfoSorter{ .id = worker_ptr->get_id() }, worker_ptr);
+            this->worker_table_.emplace(TWorkerTableSorter{ .id = worker_ptr->get_id() }, worker_ptr);
 
             return worker_ptr->get_id();
         }
@@ -87,14 +94,14 @@ export namespace jzh {
 
             {
                 std::scoped_lock lock(info_table_mutex_);
-                auto it = std::find_if(info_table_.begin(), info_table_.end(), [&](const auto& pair) {
+                auto it = std::find_if(worker_table_.begin(), worker_table_.end(), [&](const auto& pair) {
                     return pair.first.id == thread_id;
                 });
 
-                if (it == info_table_.end()) return JizhakError(JizhakErrorID::worker_not_found);
+                if (it == worker_table_.end()) return JizhakError(JizhakErrorID::worker_not_found);
 
                 worker_to_stop = it->second.get_worker();
-                info_table_.erase(it);
+                worker_table_.erase(it);
             }
 
             worker_to_stop->start_shutdown();
@@ -105,7 +112,7 @@ export namespace jzh {
 
 
         std::expected<std::weak_ptr<BaseWorker>, JizhakError> get_worker(std::jthread::id thread_id) override {
-            if (auto it = info_table_.find(TInfoSorter{ .id = thread_id }); it != info_table_.end()) {
+            if (auto it = worker_table_.find(TWorkerTableSorter{ .id = thread_id }); it != worker_table_.end()) {
                 return it->second.get_worker();
             }
             return std::unexpected<JizhakError>(JizhakErrorID::worker_not_found);
@@ -114,29 +121,29 @@ export namespace jzh {
 
         std::expected<std::weak_ptr<BaseWorker>, JizhakError> get_worker_by_index(size_t index) override {
             std::scoped_lock lock(info_table_mutex_);
-            if (index >= info_table_.size()) return std::unexpected<JizhakError>(JizhakErrorID::index_overrun);
+            if (index >= worker_table_.size()) return std::unexpected<JizhakError>(JizhakErrorID::index_overrun);
 
-            auto it = info_table_.begin();
+            auto it = worker_table_.begin();
             std::advance(it, index);
             return it->second.get_worker();
         }
 
 
         std::expected<Task::id_t, JizhakError> create_task(Task& task, TaskInfo& task_info) {
-            if (info_table_.empty())
+            if (worker_table_.empty())
                 throw std::runtime_error("no workers available");
 
             if (task.id != task_info.id)
                 return std::unexpected(JizhakError(JizhakErrorID::identifiers_are_different));
 
-            auto first_entry_iterator = info_table_.begin();
+            auto first_entry_iterator = worker_table_.begin();
 
-            auto node_handle           = info_table_.extract(first_entry_iterator);
+            auto node_handle           = worker_table_.extract(first_entry_iterator);
             TInfoWorkerTable& info_table_obj = node_handle.mapped();
 
             ++node_handle.key().pending_tasks;
 
-            info_table_.insert(std::move(node_handle));
+            worker_table_.insert(std::move(node_handle));
 
             info_table_obj.add_task(task_info);
 
@@ -149,7 +156,7 @@ export namespace jzh {
 
 
         OptionalError delete_task(Task::id_t task_id) {
-            for (auto& [sorter, info_table] : info_table_)
+            for (auto& [sorter, info_table] : worker_table_)
                 if (info_table.find_task(task_id) != info_table.tasks().end())
                     return this->delete_task(task_id, sorter.id);
 
@@ -157,11 +164,11 @@ export namespace jzh {
         }
 
         OptionalError delete_task(Task::id_t task_id, std::jthread::id thread_id) {
-            auto it = std::find_if(info_table_.begin(), info_table_.end(), [&](const auto& pair) {
+            auto it = std::find_if(worker_table_.begin(), worker_table_.end(), [&](const auto& pair) {
                 return pair.first.id == thread_id;
             });
 
-            if (it != info_table_.end()) return it->second.remove_task(task_id);
+            if (it != worker_table_.end()) return it->second.remove_task(task_id);
 
             return JizhakError(JizhakErrorID::task_not_found);
         }
@@ -170,18 +177,18 @@ export namespace jzh {
         OptionalError task_completed(Task::id_t task_id, std::jthread::id thread_id) override {
             std::scoped_lock lock(info_table_mutex_);
 
-            auto it = std::find_if(info_table_.begin(), info_table_.end(), [&](const auto& pair) {
+            auto it = std::find_if(worker_table_.begin(), worker_table_.end(), [&](const auto& pair) {
                 return pair.first.id == thread_id;
             });
 
-            if (it == info_table_.end()) return JizhakError{JizhakErrorID::worker_not_found};
+            if (it == worker_table_.end()) return JizhakError{JizhakErrorID::worker_not_found};
 
             auto& info_table_obj = it->second;
             info_table_obj.remove_task(task_id);
 
-            auto node = info_table_.extract(it);
+            auto node = worker_table_.extract(it);
             --node.key().pending_tasks;
-            info_table_.insert(std::move(node));
+            worker_table_.insert(std::move(node));
 
             if (pending_tasks_.fetch_sub(1) == 1) wait_cv_.notify_all();
 
@@ -193,15 +200,15 @@ export namespace jzh {
                                         std::jthread::id from_thread_id) override {
             std::scoped_lock lock(info_table_mutex_);
 
-            auto from_it = std::find_if(info_table_.begin(), info_table_.end(), [&](const auto& pair) {
+            auto from_it = std::find_if(worker_table_.begin(), worker_table_.end(), [&](const auto& pair) {
                 return pair.first.id == from_thread_id;
             });
 
-            auto to_it = std::find_if(info_table_.begin(), info_table_.end(), [&](const auto& pair) {
+            auto to_it = std::find_if(worker_table_.begin(), worker_table_.end(), [&](const auto& pair) {
                 return pair.first.id == to_thread_id;
             });
 
-            if (from_it == info_table_.end() || to_it == info_table_.end()) {
+            if (from_it == worker_table_.end() || to_it == worker_table_.end()) {
                 return JizhakError{JizhakErrorID::worker_not_found};
             }
 
@@ -215,18 +222,18 @@ export namespace jzh {
 
             to_it->second.add_task(stolen_task_info);
 
-            auto from_node = info_table_.extract(from_it);
+            auto from_node = worker_table_.extract(from_it);
             --from_node.key().pending_tasks;
-            info_table_.insert(std::move(from_node));
+            worker_table_.insert(std::move(from_node));
 
-            auto to_it_new = std::find_if(info_table_.begin(), info_table_.end(), [&](const auto& pair) {
+            auto to_it_new = std::find_if(worker_table_.begin(), worker_table_.end(), [&](const auto& pair) {
                 return pair.first.id == to_thread_id;
             });
-            if (to_it_new == info_table_.end()) return JizhakError{JizhakErrorID::internal_error};
+            if (to_it_new == worker_table_.end()) return JizhakError{JizhakErrorID::internal_error};
 
-            auto to_node = info_table_.extract(to_it_new);
+            auto to_node = worker_table_.extract(to_it_new);
             ++to_node.key().pending_tasks;
-            info_table_.insert(std::move(to_node));
+            worker_table_.insert(std::move(to_node));
 
             return std::nullopt;
         }
@@ -368,10 +375,10 @@ export namespace jzh {
         OptionalError stop_all() {
             wait_all();
 
-            std::vector<TInfoSorter> keys_to_stop;
+            std::vector<TWorkerTableSorter> keys_to_stop;
             {
                 std::scoped_lock lock(info_table_mutex_);
-                for (const auto& pair : info_table_) {
+                for (const auto& pair : worker_table_) {
                     keys_to_stop.push_back(pair.first);
                 }
             }
@@ -403,7 +410,7 @@ export namespace jzh {
             std::vector<std::shared_ptr<BaseWorker>> workers_to_join;
             {
                 std::scoped_lock lock(info_table_mutex_);
-                for (const auto& pair : info_table_)
+                for (const auto& pair : worker_table_)
                     workers_to_join.push_back(pair.second.get_worker());
 
             }
@@ -420,7 +427,7 @@ export namespace jzh {
 
             {
                 std::scoped_lock lock(info_table_mutex_);
-                info_table_.clear();
+                worker_table_.clear();
             }
         }
 
@@ -438,7 +445,7 @@ export namespace jzh {
 
         void notify_all() {
             std::scoped_lock lock(info_table_mutex_);
-            for (const auto& info_ptr : info_table_) {
+            for (const auto& info_ptr : worker_table_) {
                 info_ptr.second.get_worker()->notify();
             }
         }
@@ -446,20 +453,20 @@ export namespace jzh {
 
         void notify(std::jthread::id thread_id) {
             std::scoped_lock lock(info_table_mutex_);
-            if (auto it = info_table_.find(TInfoSorter{ .id = thread_id }); it != info_table_.end())
+            if (auto it = worker_table_.find(TWorkerTableSorter{ .id = thread_id }); it != worker_table_.end())
                 it->second->notify();
         }
 
 
-        std::expected<const InfoTable&, JizhakError> get_info_table() const {
-            return this->info_table_;
+        std::expected<const WorkerTable&, JizhakError> get_worker_table() const {
+            return this->worker_table_;
         }
 
 
         std::expected<const TInfoWorkerTable&, JizhakError> search_worker_for(std::jthread::id thread_id) const {
             std::scoped_lock lock(info_table_mutex_);
 
-            for (const auto& pair : info_table_) if (pair.first.id == thread_id) return pair.second;
+            for (const auto& pair : worker_table_) if (pair.first.id == thread_id) return pair.second;
 
             return std::unexpected(JizhakError{JizhakErrorID::worker_not_found});
         }
@@ -468,7 +475,7 @@ export namespace jzh {
         std::expected<const TaskInfo, JizhakError> search_task_for(Task::id_t task_id) const {
             std::scoped_lock lock(info_table_mutex_);
 
-            for (auto&& info : info_table_ | std::views::values)
+            for (auto&& info : worker_table_ | std::views::values)
                 if (auto it = info.find_task(task_id); it != info.tasks().end()) return it->second;
 
             return std::unexpected(JizhakError{JizhakErrorID::task_not_found});
@@ -487,7 +494,7 @@ export namespace jzh {
 
         [[nodiscard]] size_t number_workers() const {
             std::scoped_lock lock(info_table_mutex_);
-            return this->info_table_.size();
+            return this->worker_table_.size();
         }
 
 
@@ -502,10 +509,13 @@ export namespace jzh {
         }
     };
 
-    template <typename TInfoWorkerTable = InformationWorkerTable, typename TInfoSorter = InformationSorter, typename TWorker = Worker>
+    template <typename TInfoWorkerTable    = InformationWorkerTable,
+              typename TGlobalTaskRegistry = GlobalTaskRegistry,
+              typename TWorkerTableSorter  = InformationWorkerTableSorter,
+              typename TWorker             = Worker>
     requires (concepts::is_supported_info_table<TInfoWorkerTable, TWorker> && concepts::is_supported_worker<TWorker>)
     struct TPM {
-        using DefaultThreadPoolManager = ThreadPoolManager<TInfoWorkerTable, TInfoSorter, TWorker>;
+        using DefaultThreadPoolManager = ThreadPoolManager<TInfoWorkerTable, TGlobalTaskRegistry, TWorkerTableSorter, TWorker>;
 
         std::shared_ptr<DefaultThreadPoolManager> tpm_ptr{};
 
@@ -517,8 +527,8 @@ export namespace jzh {
             return tpm_ptr.operator->();
         }
 
-        std::expected<const typename DefaultThreadPoolManager::InfoTable&, JizhakError> operator[]() const {
-            return tpm_ptr->get_info_table();
+        std::expected<const typename DefaultThreadPoolManager::WorkerTable&, JizhakError> operator[]() const {
+            return tpm_ptr->get_worker_table();
         }
 
         std::expected<const TInfoWorkerTable&, JizhakError> operator[](std::jthread::id thread_id) const {
