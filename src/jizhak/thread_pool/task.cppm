@@ -15,8 +15,16 @@ export namespace jzh {
         none,
     };
 
+    struct TaskInfoField {
+        std::chrono::seconds timeout = std::chrono::seconds::zero();
+        long long priority = 0;
+        std::jthread::id worker_id{};
+        bool is_async = false;
+    };
+
     struct TaskInfo {
         using id_t = unsigned long long;
+        using error_t = std::exception_ptr;
 
         inline static constinit std::atomic<id_t> global_task_id = 0;
 
@@ -24,12 +32,12 @@ export namespace jzh {
         std::string hash_function{};
 
         TaskStatus status = TaskStatus::none;
+        error_t error{};
 
         std::chrono::seconds timeout = std::chrono::seconds::zero();
         long long priority = 0;
         std::jthread::id worker_id{};
 
-        bool is_task_completed = false;
         bool is_async = false;
 
         static id_t get_new_id() {
@@ -37,8 +45,24 @@ export namespace jzh {
         }
 
         TaskInfo() : id(get_new_id()) {};
-        explicit TaskInfo(const std::chrono::seconds timeout, const long long priority, const bool is_async)
-            : id(get_new_id()), timeout(timeout), priority(priority), is_async(is_async) {}
+
+        explicit TaskInfo(
+            const std::chrono::seconds timeout,
+            const long long priority,
+            const std::jthread::id worker_id,
+            const bool is_async) :
+            id(get_new_id()),
+            timeout(timeout),
+            priority(priority),
+            worker_id(worker_id),
+            is_async(is_async) {}
+
+        explicit TaskInfo(const TaskInfoField& task_info_field) :
+            id(get_new_id()),
+            timeout(task_info_field.timeout),
+            priority(task_info_field.priority),
+            worker_id(task_info_field.worker_id),
+            is_async(task_info_field.is_async) {}
     };
 
     struct Task {
@@ -70,6 +94,10 @@ export namespace jzh {
         std::optional<JizhakError> operator()() const {
             return task_ptr->operator()();
         }
+
+        Task* operator->() const {
+            return task_ptr.get();
+        }
     };
 
 
@@ -85,8 +113,18 @@ export namespace jzh {
         return TaskPointer(std::make_shared<Task>(std::move(task_info), std::move(func)));
     }
 
-    TaskPointer make_task(Task::Function func, const std::chrono::seconds timeout, const long long priority, const bool is_async) {
-        return TaskPointer(std::make_shared<Task>(std::move(func), TaskInfo(timeout, priority, is_async)));
+    TaskPointer make_task(
+        Task::Function func,
+        const std::chrono::seconds timeout,
+        const long long priority,
+        const std::jthread::id worker_id,
+        const bool is_async) {
+        return TaskPointer(
+            std::make_shared<Task>(std::move(func),
+            TaskInfo(timeout, priority, worker_id, is_async)));
     }
 
+    TaskPointer make_task(Task::Function func, const TaskInfoField& task_info_field) {
+        return TaskPointer(std::make_shared<Task>(std::move(func), TaskInfo(task_info_field)));
+    }
 } // namespace jzh
