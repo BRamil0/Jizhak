@@ -19,7 +19,7 @@ export namespace jzh {
     struct TaskInfoField {
         std::chrono::seconds timeout = std::chrono::seconds::zero();
         long long priority = 0;
-        std::jthread::id performer_worker_id{};
+        std::optional<std::jthread::id> performer_worker_id{};
         bool is_async = false;
     };
 
@@ -38,8 +38,8 @@ export namespace jzh {
         std::chrono::seconds timeout = std::chrono::seconds::zero();
         long long priority = 0;
 
-        std::jthread::id performer_worker_id{};
-        std::jthread::id current_thread_id{};
+        std::optional<std::jthread::id> performer_worker_id{};
+        std::optional<std::jthread::id> current_thread_id{};
 
         bool is_async = false;
 
