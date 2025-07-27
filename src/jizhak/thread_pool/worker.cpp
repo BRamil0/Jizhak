@@ -46,6 +46,7 @@ namespace jzh {
 
             if (task_to_run->function) {
                 try {
+                    task_to_run->task_info.status = TaskStatus::in_progress;
                     if (auto result = task_to_run(); result.has_value()) {
                         task_to_run->task_info.status = TaskStatus::completed_with_error;
                         task_to_run->task_info.error = std::make_exception_ptr<JizhakError>(result.value());
@@ -78,10 +79,10 @@ namespace jzh {
         this->id = thread.get_id();
     }
 
-    void BaseWorker::add_task(const TaskPointer& new_task) {
+    void BaseWorker::add_task(TaskPointer new_task) {
         {
             std::scoped_lock lock(queue_mutex);
-            tasks.push_back(new_task);
+            tasks.push_back(std::move(new_task));
         }
         cv.notify_one();
     }

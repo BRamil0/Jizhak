@@ -39,7 +39,7 @@ export namespace jzh {
 
         void start(std::function<void(std::stop_token)> work_function);
 
-        void add_task(const TaskPointer& new_task);
+        void add_task(TaskPointer new_task);
 
         void notify();
 
