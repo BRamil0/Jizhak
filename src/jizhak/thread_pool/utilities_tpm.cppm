@@ -62,15 +62,31 @@ export namespace jzh {
                     tasks_.erase(it);;
         }
 
-        [[nodiscard]] virtual std::unordered_map<unsigned long long, TaskPointer>::iterator find_task(const Task::id_t id) {
+        [[nodiscard]] virtual std::unordered_map<Task::id_t, TaskPointer>::iterator find_task(const Task::id_t id) {
             std::scoped_lock lock(mutex_);
             return tasks_.find(id);
         }
 
-        [[nodiscard]] virtual std::unordered_map<unsigned long long, TaskPointer>::const_iterator find_task(
+        [[nodiscard]] virtual std::expected<TaskPointer, JizhakError> find_task_for_key(const Task::id_t id) {
+            std::scoped_lock lock(mutex_);
+            if (auto it = tasks_.find(id); it != tasks_.end())
+                return it->second;
+            return std::unexpected<JizhakError>(JizhakErrorID::task_not_found);
+
+        }
+
+        [[nodiscard]] virtual std::unordered_map<Task::id_t, TaskPointer>::const_iterator find_task(
             const Task::id_t id) const {
             std::scoped_lock lock(mutex_);
             return tasks_.find(id);
+        }
+
+
+        [[nodiscard]] virtual std::expected<TaskPointer, JizhakError> find_task_for_key(const Task::id_t id) const {
+            std::scoped_lock lock(mutex_);
+            if (const auto it = tasks_.find(id); it != tasks_.end())
+                return it->second;
+            return std::unexpected<JizhakError>(JizhakErrorID::task_not_found);
         }
 
         [[nodiscard]] virtual TaskPointer get_task(const Task::id_t id) {
@@ -99,6 +115,26 @@ export namespace jzh {
         virtual void clear() {
             std::scoped_lock lock(mutex_);
             tasks_.clear();
+        }
+
+        virtual std::unordered_map<Task::id_t, TaskPointer>::iterator begin_task() {
+            std::scoped_lock lock(mutex_);
+            return tasks_.begin();
+        }
+
+        virtual std::unordered_map<Task::id_t, TaskPointer>::const_iterator begin_task() const {
+            std::scoped_lock lock(mutex_);
+            return tasks_.end();
+        }
+
+        virtual std::unordered_map<Task::id_t, TaskPointer>::iterator end_task() {
+            std::scoped_lock lock(mutex_);
+            return tasks_.end();
+        }
+
+        virtual std::unordered_map<Task::id_t, TaskPointer>::const_iterator end_task() const {
+            std::scoped_lock lock(mutex_);
+            return tasks_.end();
         }
     };
 
