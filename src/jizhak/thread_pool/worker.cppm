@@ -8,7 +8,7 @@ import std;
 export namespace jzh {
     class BaseWorker {
     public:
-        template <typename TInfoTable, typename TInfoSorter, typename TWorker>
+        template <typename TWorkerRegistry, typename TTaskRegistry, typename TWorker>
         friend class ThreadPoolManager;
 
         using OptionalError = std::optional<JizhakError>;
@@ -41,6 +41,8 @@ export namespace jzh {
 
         void add_task(TaskPointer new_task);
 
+        std::optional<JizhakError> remove_task(Task::id_t task_id);
+
         void notify();
 
         void start_shutdown();
@@ -67,5 +69,13 @@ export namespace jzh {
         OptionalError steal_task() override;
         explicit Worker() : BaseWorker(), random_generator_(std::random_device{}()) {}
 
+    };
+
+    struct WorkerInfo {
+        std::jthread::id id{};
+        size_t total_tasks = 0;
+        size_t async_tasks = 0;
+        bool is_shutting_down = false;
+        std::unordered_map<Task::id_t, TaskPointer> tasks{};
     };
 } // namespace jzh

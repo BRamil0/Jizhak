@@ -19,7 +19,7 @@ namespace jzh {
             {
                 std::unique_lock lock(queue_mutex);
                 cv.wait(lock, [this, &token, tpm] {
-                    return token.stop_requested() || (!tasks.empty() && !tpm->__is_paused());
+                    return token.stop_requested() || (!tasks.empty() && !tpm->is_paused());
                 });
 
                 if (token.stop_requested()) return;
@@ -32,7 +32,7 @@ namespace jzh {
                     if (!steal_task()) {
                         lock.lock();
                         continue;
-                    };
+                    }
 
                     lock.lock();
                     continue;
@@ -53,7 +53,7 @@ namespace jzh {
                     } else
                         task_to_run->task_info.status = TaskStatus::completed;
 
-                } catch (const std::exception& e) {
+                } catch (const std::exception&) {
                     task_to_run->task_info.status = TaskStatus::error;
                     task_to_run->task_info.error = std::current_exception();
 
@@ -63,7 +63,7 @@ namespace jzh {
 
                 }
 
-                tpm->task_completed(task_to_run->task_info.id, this->id);
+                tpm->_task_completed(task_to_run->task_info.id, this->id);
             }
 
         }
@@ -71,7 +71,7 @@ namespace jzh {
 
     OptionalError BaseWorker::steal_task() {
         return std::nullopt;
-    };
+    }
 
     // BaseWorker: public
     void BaseWorker::start(std::function<void(std::stop_token)> work_function) {
@@ -85,6 +85,11 @@ namespace jzh {
             tasks.push_back(std::move(new_task));
         }
         cv.notify_one();
+    }
+
+    std::optional<JizhakError> BaseWorker::remove_task([[maybe_unused]] Task::id_t task_id) {
+        std::scoped_lock lock(queue_mutex);
+        return std::nullopt;
     }
 
     void BaseWorker::notify() {
@@ -142,36 +147,45 @@ namespace jzh {
 
     // Worker: protected
     OptionalError Worker::steal_task() {
-        const auto locked_tpm = this_thread::get_tpm().lock();
-        if (!locked_tpm) return std::nullopt;
-        ThreadPoolManagerBase* tpm = locked_tpm.get();
+        const auto tpm_weak = this_thread::get_tpm();
+        auto tpm = tpm_weak.lock();
+        if (!tpm) return std::nullopt;
 
-        const size_t pool_size = tpm->__number_workers();
-        if (pool_size <= 1) return std::nullopt;
-        std::uniform_int_distribution<size_t> distribution(0, pool_size - 1);
+        auto workers_info_map_exp = tpm->get_workers_info();
+        if (!workers_info_map_exp) return std::nullopt;
 
-        for ([[maybe_unused]] size_t _ : std::ranges::iota_view{0uz, pool_size}) {
-            const size_t victim_index = distribution(random_generator_);
-            if (auto weak_victim = tpm->get_worker_by_index(victim_index); weak_victim.has_value()) {
-                if (const auto shared_victim = weak_victim.value().lock()) {
-                    if (shared_victim && shared_victim->get_id() != this->get_id()) {
-                        if (auto stolen_tasks_opt = shared_victim->yield_half_of_tasks()) {
-                            if (!stolen_tasks_opt->empty()) {
-                                const auto victim_id = shared_victim->get_id();
-                                for (const auto& task : *stolen_tasks_opt)
-                                    tpm->notify_steal_task(task->task_info.id, this->get_id(), victim_id);
-                                {
-                                    std::scoped_lock lock(this->queue_mutex);
-                                    for (auto& task : *stolen_tasks_opt)
-                                        this->tasks.push_back(std::move(task));
-                                }
-                                return std::nullopt;
-                            }
-                        }
+        auto workers_info_map = *workers_info_map_exp;
+
+        std::vector<std::jthread::id> victim_ids;
+        for (const auto& [thread_id, info] : workers_info_map) {
+            if (thread_id != this->get_id() && !info.is_shutting_down) {
+                victim_ids.push_back(thread_id);
+            }
+        }
+
+        if (victim_ids.empty()) {
+            return JizhakError{JizhakErrorID::cannot_steal_task};
+        }
+
+        std::ranges::shuffle(victim_ids, random_generator_);
+
+        for (const auto& victim_id : victim_ids) {
+            if (auto stolen_tasks_opt = tpm->steal_tasks_from(victim_id)) {
+                if (stolen_tasks_opt && !stolen_tasks_opt->empty()) {
+
+                    for (const auto& task : *stolen_tasks_opt)
+                        tpm->_on_task_stolen(task->task_info.id, this->get_id(), victim_id);
+
+                    {
+                        std::scoped_lock lock(this->queue_mutex);
+                        for (auto& task : *stolen_tasks_opt)
+                            this->tasks.push_back(std::move(task));
                     }
+                    return std::nullopt;
                 }
             }
         }
+
         return JizhakError{JizhakErrorID::cannot_steal_task};
     }
 } // namespace jzh
