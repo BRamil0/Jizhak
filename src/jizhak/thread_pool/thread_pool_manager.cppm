@@ -162,15 +162,15 @@ export namespace jzh {
         ThreadPoolManager& operator=(const ThreadPoolManager&) = delete;
         ThreadPoolManager& operator=(ThreadPoolManager&&)      = default;
 
-            ~ThreadPoolManager() override {
-                try {
-                    this->stop_all(std::chrono::minutes(10));
-                    unregister_this_thread();
-                }
-                catch (...) {
-                    this->instant_stop_all();
-                }
+        ~ThreadPoolManager() override {
+            try {
+                this->stop_all(std::chrono::minutes(10));
+                unregister_this_thread();
             }
+            catch (...) {
+                this->instant_stop_all();
+            }
+        }
 
         OptionalError register_this_thread() {
             if (this_thread::get_tpm().lock() != nullptr)
