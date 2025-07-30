@@ -19,14 +19,14 @@ namespace jzh {
             {
                 std::unique_lock lock(queue_mutex);
                 cv.wait(lock, [this, &token, tpm] {
-                    return token.stop_requested() || (!tasks.empty() && !tpm->is_paused());
+                    return token.stop_requested() or is_shutdown.load() or (!tasks.empty() and !tpm->is_paused());
                 });
 
                 if (token.stop_requested()) return;
 
-                if (is_shutdown.load() && tasks.empty()) return;
+                if (is_shutdown.load() and tasks.empty()) return;
 
-                if (tasks.empty() && !is_shutdown.load()) {
+                if (tasks.empty() and !is_shutdown.load()) {
                     lock.unlock();
 
                     if (!steal_task()) {

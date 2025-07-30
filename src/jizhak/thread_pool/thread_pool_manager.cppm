@@ -53,6 +53,7 @@ export namespace jzh {
         std::atomic<size_t> pending_tasks_{0};
 
         std::atomic<bool> pause_ = false;
+        std::atomic<bool> this_context_ = false;
 
         mutable std::mutex mutex_{};
 
@@ -161,27 +162,28 @@ export namespace jzh {
         ThreadPoolManager& operator=(const ThreadPoolManager&) = delete;
         ThreadPoolManager& operator=(ThreadPoolManager&&)      = default;
 
-        ~ThreadPoolManager() override {
-            unregister_this_thread();
-
-            try {
-                this->stop_all(std::chrono::minutes(10));
+            ~ThreadPoolManager() override {
+                try {
+                    this->stop_all(std::chrono::minutes(10));
+                    unregister_this_thread();
+                }
+                catch (...) {
+                    this->instant_stop_all();
+                }
             }
-            catch (...) {
-                this->instant_stop_all();
-            }
-        }
 
         OptionalError register_this_thread() {
             if (this_thread::get_tpm().lock() != nullptr)
                 return JizhakError(JizhakErrorID::thread_already_registered);
             this_thread::set_tpm(std::static_pointer_cast<ThreadPoolManagerBase>(this->shared_from_this()));
+            this_context_ = true;
             return std::nullopt;
         }
 
         OptionalError unregister_this_thread() {
-            if (this_thread::get_tpm().lock() != std::static_pointer_cast<ThreadPoolManagerBase>(this->shared_from_this()))
+            if (!this_context_.load() or this_thread::get_tpm().lock() == nullptr)
                 return JizhakError(JizhakErrorID::the_established_thread_is_not_this_tpm);
+            this_context_ = false;
             this_thread::unregister_this_thread();
             return std::nullopt;
         }
@@ -299,7 +301,12 @@ export namespace jzh {
         OptionalError stop_all() {
             wait_all();
 
-            auto worker_ids_to_stop = worker_registry_.get_all_worker_ids();
+            auto result = worker_registry_.get_all_worker_ids();
+
+            if (!result.has_value())
+                return result.error();
+
+            auto worker_ids_to_stop = result.value();
 
             for (const auto& id : worker_ids_to_stop) {
                 __stop_worker(id);
@@ -409,6 +416,10 @@ export namespace jzh {
 
         [[nodiscard]] bool is_paused() const override {
             return this->pause_;
+        }
+
+        [[nodiscard]] bool is_this_thread() const {
+            return this->this_context_.load();
         }
 
         std::optional<std::deque<TaskPointer>> steal_tasks_from(std::jthread::id victim_id) override {

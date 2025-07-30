@@ -594,8 +594,11 @@ export namespace jzh {
             return std::nullopt;
         }
 
-        [[nodiscard]] std::vector<std::jthread::id> get_all_worker_ids() const {
+        [[nodiscard]] std::expected<std::vector<std::jthread::id>, JizhakError> get_all_worker_ids() const {
             std::scoped_lock lock(mutex_);
+            if (workers_.empty())
+                return std::unexpected<JizhakError>(JizhakErrorID::empty);
+
             std::vector<std::jthread::id> ids;
             ids.reserve(workers_.size());
             for (const auto& pair : workers_) {
