@@ -162,12 +162,28 @@ export namespace jzh {
         ThreadPoolManager& operator=(ThreadPoolManager&&)      = default;
 
         ~ThreadPoolManager() override {
+            unregister_this_thread();
+
             try {
                 this->stop_all(std::chrono::minutes(10));
             }
             catch (...) {
                 this->instant_stop_all();
             }
+        }
+
+        OptionalError register_this_thread() {
+            if (this_thread::get_tpm().lock() != nullptr)
+                return JizhakError(JizhakErrorID::thread_already_registered);
+            this_thread::set_tpm(std::static_pointer_cast<ThreadPoolManagerBase>(this->shared_from_this()));
+            return std::nullopt;
+        }
+
+        OptionalError unregister_this_thread() {
+            if (this_thread::get_tpm().lock() != std::static_pointer_cast<ThreadPoolManagerBase>(this->shared_from_this()))
+                return JizhakError(JizhakErrorID::the_established_thread_is_not_this_tpm);
+            this_thread::unregister_this_thread();
+            return std::nullopt;
         }
 
         std::expected<std::weak_ptr<BaseWorker>, JizhakError> get_worker(std::jthread::id thread_id) {
@@ -452,10 +468,14 @@ export namespace jzh {
     };
 
     inline TPM<> make_tpm() {
-        return {};
+        auto tpm = TPM<>();
+        tpm->register_this_thread();
+        return tpm;
     }
 
     inline TPM<> make_tpm(unsigned int quantity) {
-        return TPM<>(quantity);
+        auto tpm = TPM<>(quantity);
+        tpm->register_this_thread();
+        return tpm;
     }
 } // namespace jzh

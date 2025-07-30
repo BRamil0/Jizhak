@@ -31,6 +31,8 @@ export namespace jzh {
         failed_start_in_stream,
         internal_error,
         shutting,
+        thread_already_registered,
+        the_established_thread_is_not_this_tpm,
     };
 
     template <typename T> requires is_supported_enum<T>

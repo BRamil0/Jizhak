@@ -10,6 +10,10 @@ namespace jzh::this_thread {
 }
 
 export namespace jzh::this_thread {
+    inline void unregister_this_thread() {
+        current_tpm = std::weak_ptr<ThreadPoolManagerBase>{};
+    }
+
     inline void set_tpm(const std::weak_ptr<ThreadPoolManagerBase>& tpm) {
         current_tpm = tpm;
     }
