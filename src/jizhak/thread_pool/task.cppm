@@ -8,6 +8,7 @@ export namespace jzh {
 
     enum struct TaskStatus {
         completed,
+        completed_synchronously,
         completed_with_error,
         error,
         error_no_exception,
