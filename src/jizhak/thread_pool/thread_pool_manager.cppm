@@ -204,7 +204,7 @@ export namespace jzh {
             }
         }
         template <typename F, typename... Args>
-        std::expected<std::tuple<std::future<std::invoke_result_t<F, Args...>>, Task::id_t>, JizhakError>
+        std::expected<std::pair<std::future<std::invoke_result_t<F, Args...>>, Task::id_t>, JizhakError>
         add_task(const TaskInfo task_info, F&& func, Args&&... args) {
             using ReturnType = std::invoke_result_t<F, Args...>;
 
@@ -225,17 +225,16 @@ export namespace jzh {
             if (auto creation_result = __start_task(task_id); !creation_result)
                 return std::unexpected(creation_result.error());
 
-            return std::make_tuple(std::move(future_result), task_id);
+            return std::make_pair(std::move(future_result), task_id);
         }
         template <typename F, typename... Args>
-        requires(!std::is_same_v<std::decay_t<F>, TaskInfo>)
-        std::expected<std::tuple<std::future<std::invoke_result_t<F, Args...>>, Task::id_t>, JizhakError>
+        std::expected<std::pair<std::future<std::invoke_result_t<F, Args...>>, Task::id_t>, JizhakError>
         add_task(const TaskInfoField task_info_field, F&& func, Args&&... args) {
             return this->add_task(TaskInfo(task_info_field), std::forward<F>(func), std::forward<Args>(args)...);
         }
         template <typename F, typename... Args>
         requires(!std::is_same_v<std::decay_t<F>, TaskInfo>)
-        std::expected<std::tuple<std::future<std::invoke_result_t<F, Args...>>, Task::id_t>, JizhakError>
+        std::expected<std::pair<std::future<std::invoke_result_t<F, Args...>>, Task::id_t>, JizhakError>
         add_task(F&& func, Args&&... args) {
             return this->add_task(TaskInfo(), std::forward<F>(func), std::forward<Args>(args)...);
         }
