@@ -1,15 +1,16 @@
 export module jizhak.error;
 
 import std;
-#include <boost/exception/exception.hpp>
 
-template <typename TErrorID>
-concept is_supported_enum = std::is_enum_v<TErrorID> && requires {
-    { TErrorID::OK } -> std::convertible_to<TErrorID>;
-    { TErrorID::null } -> std::convertible_to<TErrorID>;
-    { TErrorID::none } -> std::convertible_to<TErrorID>;
-    { TErrorID::pass } -> std::convertible_to<TErrorID>;
-};
+export namespace jzh::concepts {
+    template <typename TErrorID>
+    concept is_supported_enum = std::is_enum_v<TErrorID> && requires {
+        { TErrorID::OK } -> std::convertible_to<TErrorID>;
+        { TErrorID::null } -> std::convertible_to<TErrorID>;
+        { TErrorID::none } -> std::convertible_to<TErrorID>;
+        { TErrorID::pass } -> std::convertible_to<TErrorID>;
+    };
+} // namespace jzh::concepts
 
 template<typename T>
 inline constexpr bool dependent_false = false;
@@ -42,7 +43,7 @@ export namespace jzh {
         the_established_thread_is_not_this_tpm,
     };
 
-    template <typename T> requires is_supported_enum<T>
+    template <typename T> requires concepts::is_supported_enum<T>
     constexpr std::string_view default_message_for(T code_id) {
         static_assert(dependent_false<T>, "You forgot to overload the function");
         return {};
@@ -58,7 +59,7 @@ export namespace jzh {
         }
     }
 
-    template <typename TErrorID> requires is_supported_enum<TErrorID>
+    template <typename TErrorID> requires concepts::is_supported_enum<TErrorID>
     struct Error : public std::exception {
         TErrorID id = TErrorID::none;
         std::string message_{default_message_for(id)};
