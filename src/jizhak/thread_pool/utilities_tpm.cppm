@@ -1,6 +1,6 @@
 // utilities_tpm.cppm
 
-export module jizhak_.thread_pool_.utilities_tpm;
+export module jizhak.thread_pool.utilities_tpm;
 
 import std;
 import jizhak.error;
