@@ -32,7 +32,7 @@ namespace jzh {
 
     protected:
         std::optional<JizhakError> read_byts(const size_t bytes_to_read = 4) {
-            if (file_io->tell() <= file_io->size())
+            if (file_io->tell() >= file_io->size())
                 return JizhakError(JizhakErrorID::max_size_file);
             this->byte_buffer.append_range(file_io->read(bytes_to_read));
             return std::nullopt;
