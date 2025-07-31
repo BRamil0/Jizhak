@@ -1,9 +1,15 @@
 export module jizhak.error;
 
 import std;
+#include <boost/exception/exception.hpp>
 
-template <typename T>
-concept is_supported_enum = std::is_enum_v<T> && requires {{ T::OK } -> std::convertible_to<T>;};
+template <typename TErrorID>
+concept is_supported_enum = std::is_enum_v<TErrorID> && requires {
+    { TErrorID::OK } -> std::convertible_to<TErrorID>;
+    { TErrorID::null } -> std::convertible_to<TErrorID>;
+    { TErrorID::none } -> std::convertible_to<TErrorID>;
+    { TErrorID::pass } -> std::convertible_to<TErrorID>;
+};
 
 template<typename T>
 inline constexpr bool dependent_false = false;
@@ -13,6 +19,7 @@ export namespace jzh {
         OK = 0,
         pass,
         null,
+        none,
         empty,
         buffer_is_empty,
         incomplete_character,
@@ -51,20 +58,28 @@ export namespace jzh {
         }
     }
 
-    template <typename T> requires is_supported_enum<T>
-    struct Error {
-        T id = T::OK;
+    template <typename TErrorID> requires is_supported_enum<TErrorID>
+    struct Error : public std::exception {
+        TErrorID id = TErrorID::none;
         std::string message_{default_message_for(id)};
 
         Error() = default;
 
-        Error(const T new_id)
+        Error(const TErrorID new_id)
             : id(new_id), message_(default_message_for(new_id)) {}
 
-        Error(const T new_id, std::string_view const& new_message)
+        Error(const TErrorID new_id, std::string_view const& new_message)
             : id(new_id), message_(new_message) {}
 
-        bool operator==(const T& other_id) const {
+        Error(const Error& other) = default;
+        Error(Error&& other) noexcept = default;
+
+        Error& operator=(const Error& other) = default;
+        Error& operator=(Error&& other) noexcept = default;
+
+        ~Error() override = default;
+
+        bool operator==(const TErrorID& other_id) const {
             return id == other_id;
         }
 
@@ -73,14 +88,14 @@ export namespace jzh {
         }
 
         explicit operator bool() const {
-            return id != T::OK;
+            return (id != TErrorID::OK) and (id != TErrorID::none) and (id != TErrorID::null) and (id != TErrorID::pass);
         }
 
-        [[nodiscard]] std::string_view what() const {
-            return message_;
+        [[nodiscard]] const char* what() const noexcept override {
+            return message_.c_str();
         }
 
-        [[nodiscard]] std::string_view message() const {
+        [[nodiscard]] std::string_view message() const noexcept {
             return message_;
         }
     };
