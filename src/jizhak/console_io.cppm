@@ -14,16 +14,17 @@ module;
 export module jizhak.io.console;
 import std;
 
-
-template <typename T>
-concept is_supported_string = requires(T t) {
-    { std::basic_string_view(t) } -> std::same_as<std::basic_string_view<typename decltype(std::basic_string_view(t))::value_type>>;
-    requires std::same_as<typename decltype(std::basic_string_view(t))::value_type, char> ||
-             std::same_as<typename decltype(std::basic_string_view(t))::value_type, wchar_t> ||
-             std::same_as<typename decltype(std::basic_string_view(t))::value_type, char8_t> ||
-             std::same_as<typename decltype(std::basic_string_view(t))::value_type, char16_t> ||
-             std::same_as<typename decltype(std::basic_string_view(t))::value_type, char32_t>;
-};
+export namespace jzh::concepts {
+    template <typename T>
+    concept is_supported_string = requires(T t) {
+        { std::basic_string_view(t) } -> std::same_as<std::basic_string_view<typename decltype(std::basic_string_view(t))::value_type>>;
+        requires std::same_as<typename decltype(std::basic_string_view(t))::value_type, char> ||
+                 std::same_as<typename decltype(std::basic_string_view(t))::value_type, wchar_t> ||
+                 std::same_as<typename decltype(std::basic_string_view(t))::value_type, char8_t> ||
+                 std::same_as<typename decltype(std::basic_string_view(t))::value_type, char16_t> ||
+                 std::same_as<typename decltype(std::basic_string_view(t))::value_type, char32_t>;
+    };
+} // namespace jzh::concepts
 
 export namespace jzh {
     class ConsoleBaseIO {
@@ -111,11 +112,11 @@ export namespace jzh {
         explicit ConsoleBaseIO(std::string new_sep, std::string new_end)
             : sep(std::move(new_sep)), end(std::move(new_end)) {}
 
-        ConsoleBaseIO(const ConsoleBaseIO&) = default;
-        ConsoleBaseIO(ConsoleBaseIO&&) = default;
+        ConsoleBaseIO(const ConsoleBaseIO& other) = default;
+        ConsoleBaseIO(ConsoleBaseIO&& other) = default;
 
-        ConsoleBaseIO& operator=(const ConsoleBaseIO&) = default;
-        ConsoleBaseIO& operator=(ConsoleBaseIO&&) = default;
+        ConsoleBaseIO& operator=(const ConsoleBaseIO& other) = default;
+        ConsoleBaseIO& operator=(ConsoleBaseIO&& other) = default;
 
         virtual ~ConsoleBaseIO() = default;
 
@@ -140,7 +141,7 @@ export namespace jzh {
         void set_separator(std::string &new_sep) { sep = std::move(new_sep); }
         void set_end(std::string &new_end) { end = std::move(new_end); }
 
-        template <typename Fmt, typename... Args> requires(is_supported_string<Fmt>)
+        template <typename Fmt, typename... Args> requires(concepts::is_supported_string<Fmt>)
         void print(Fmt&& fmt, Args&&... args) {
             std::string fmt_as_utf8 = this->to_utf8(std::forward<Fmt>(fmt));
 
@@ -159,7 +160,7 @@ export namespace jzh {
             }
         }
 
-        template<typename Fmt, typename... Args> requires(is_supported_string<Fmt>)
+        template<typename Fmt, typename... Args> requires(concepts::is_supported_string<Fmt>)
         void println(Fmt&& fmt, Args&&... args) {
             this->print(std::forward<Fmt>(fmt), std::forward<Args>(args)...);
             this->print(this->end);
@@ -293,7 +294,7 @@ export namespace jzh {
             return *this;
         }
 
-        template <typename T = std::string> requires(is_supported_string<T> || std::is_integral_v<T> || std::is_floating_point_v<T>)
+        template <typename T = std::string> requires(concepts::is_supported_string<T> || std::is_integral_v<T> || std::is_floating_point_v<T>)
         T input(std::string_view prompt = "", std::string_view stop_chars = "\n", size_t buffer_size = 0, bool echo = true) {
             if (!prompt.empty()) {
                 print(prompt);
@@ -323,7 +324,7 @@ export namespace jzh {
             }
         }
 
-        template <typename T = std::string> requires(is_supported_string<T> || std::is_integral_v<T> || std::is_floating_point_v<T>)
+        template <typename T = std::string> requires(concepts::is_supported_string<T> || std::is_integral_v<T> || std::is_floating_point_v<T>)
         T input_line(std::string_view prompt = "") {
             return this->input<T>(prompt, "\n", 0, true);
         }
