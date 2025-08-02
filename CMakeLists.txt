@@ -1,52 +1,64 @@
-cmake_minimum_required(VERSION 4.0)
+cmake_minimum_required(VERSION 4.0.3)
 
-set(CMAKE_CXX_STANDARD 23)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_SCAN_FOR_MODULES ON)
+if (!CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+    # https://github.com/Kitware/CMake/blob/v4.0.3/Help/dev/experimental.rst#c-import-std-supportclang++
+    set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "d0edc3af-4c50-42ea-a356-e2862fe7a444")
+    set(CMAKE_CXX_MODULE_STD ON)
+endif()
 
 project(Jizhak LANGUAGES CXX)
 
-# --- Налаштування прапорців компілятора ---
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# GCC/Clang:
-#  -Wall: Базовий набір корисних попереджень.
-#  -Wextra: Додаткові корисні попередження.
-#  -pedantic: Попередження про відхилення від стандарту C++.
-#  -Werror: Всі попередження стають помилками. Збірка зупиниться.
-#  -Wshadow: Попереджати про "затінення" змінних.
-#  -Wconversion: Попереджати про потенційно небезпечні неявні перетворення типів.
-#  -Wno-<назва-попередження>: Вимкнути конкретне попередження (наприклад, -Wno-unused-variable).
-#
-# MSVC (Visual Studio Compiler):
-#  /W0, /W1, /W2, /W3, /W4: Рівні попереджень (від найменшого до найбільшого). /W3 — типовий, /W4 — рекомендований для високої якості коду.
-#  /Wall: Увімкнути всі попередження, включаючи ті, що за замовчуванням вимкнені (може бути дуже "шумно").
-#  /WX: Трактувати попередження як помилки.
-#  /wd<номер-попередження>: Вимкнути конкретне попередження (наприклад, /wd4100 для невикористаного параметра).
-
-if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-    if(CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "GNU")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -pedantic -Wshadow -Wconversion")
+if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+    if (CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "GNU")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fmodules -Wall -Wextra -pedantic -Wshadow -Wconversion") # -Werror -stdlib=libc++
         message(STATUS "Clang-CL (in VS) CXX Flags: ${CMAKE_CXX_FLAGS}")
 
     else()
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4 /permissive- /Zc:__cplusplus")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4 /permissive- /Zc:__cplusplus") # /Wall /WX
         message(STATUS "MSVC CXX Flags: ${CMAKE_CXX_FLAGS}")
     endif()
 
-elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang|AppleClang")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -pedantic -Wshadow -Wconversion")
+elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang|AppleClang")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fmodules -Wall -Wextra -pedantic -Wshadow -Wconversion") # -Werror -stdlib=libc++
     message(STATUS "Clang CXX Flags: ${CMAKE_CXX_FLAGS}")
 
-elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -pedantic -Wshadow -Wconversion")
+elseif (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+#    set(GCC_STD_MODULE_PATH "E:/msys64/mingw64/include/c++/15.1.0/bits/std.cc")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fmodules -Wall -Wextra -pedantic -Wshadow -Wconversion") # -fsearch-include-path bits/std.cc
     message(STATUS "GCC CXX Flags: ${CMAKE_CXX_FLAGS}")
+
 endif()
 
-# ======================================================================
-# ===               ВИЗНАЧЕННЯ БІБЛІОТЕКИ JIZHAK                    ===
-# ======================================================================
+if (WIN32)
+    add_compile_definitions(
+        WIN32_LEAN_AND_MEAN
+        NOMINMAX
+        _CRT_SECURE_NO_WARNINGS
+    )
+endif()
+
+if (MINGW)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++ -static")
+    message(STATUS "MinGW detected. Enabling static runtime linking.")
+endif()
+
+# Залежності через vcpkg
+# cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=[vcpkg]/scripts/buildsystems/vcpkg.cmake
+find_package(fmt CONFIG REQUIRED)
+find_package(Boost REQUIRED COMPONENTS locale)
+
+set(CMAKE_CXX_SCAN_FOR_MODULES ON)
+if (!CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+    set(CMAKE_CXX_EXTENSIONS ON)
+endif()
 
 add_library(Jizhak)
+
+target_link_libraries(Jizhak PUBLIC fmt::fmt)
+target_link_libraries(Jizhak PUBLIC Boost::locale)
 
 file(GLOB_RECURSE JIZHAK_MODULES "src/jizhak/*.cppm")
 file(GLOB_RECURSE JIZHAK_SOURCES "src/jizhak/*.cpp")
@@ -55,9 +67,6 @@ target_sources(Jizhak PRIVATE
     ${JIZHAK_SOURCES}
 )
 
-# .cppm файли є публічним інтерфейсом.
-# PUBLIC: щоб проєкти, які використовують Jizhak, могли їх імпортувати.
-# BASE_DIRS: щоб перетворити шлях "src/jizhak/print.cppm" на логічне ім'я "jizhak.print".
 target_sources(Jizhak PUBLIC
     FILE_SET CXX_MODULES
     BASE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/src/jizhak"
@@ -67,44 +76,19 @@ target_sources(Jizhak PUBLIC
 target_compile_features(Jizhak PUBLIC cxx_std_23)
 
 target_include_directories(Jizhak PUBLIC
-    # Для будь-яких публічних .hpp файлів.
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
-    # Для скомпільованих інтерфейсів модулів (.ifc/.gcm), які CMake розміщує тут.
     "${CMAKE_CURRENT_BINARY_DIR}"
 )
 
+# Локальні залежності (тести та приклад)
 
-# ======================================================================
-# ===           НАЛАШТУВАННЯ ЗАЛЕЖНОСТЕЙ (через vcpkg)            ===
-# ======================================================================
-#
-# Щоб це працювало, ви маєте створити файл vcpkg.json у корені
-# і налаштувати проєкт командою:
-# cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=[шлях до vcpkg]/scripts/buildsystems/vcpkg.cmake
+option(JIZHAK_BUILD_TESTS "Build the tests for Jizhak" OFF)
+option(JIZHAK_BUILD_EXAMPLE "Build the example for Jizhak" ON)
 
-find_package(fmt CONFIG REQUIRED)
-target_link_libraries(Jizhak PUBLIC fmt::fmt)
-
-find_package(Boost REQUIRED COMPONENTS locale)
-target_link_libraries(Jizhak PUBLIC Boost::locale)
-
-# ======================================================================
-# ===               ПІДПРОЄКТИ (ТЕСТИ ТА ПРИКЛАДИ)                  ===
-# ======================================================================
-
-# Дозволяє вмикати/вимикати збірку тестів та прикладів
-option(JIZHAK_BUILD_TESTS "Build the tests for Jizhak" OFF) # За замовчуванням вимкнені
-option(JIZHAK_BUILD_EXAMPLE "Build the example for Jizhak" ON) # За замовчуванням увімкнені
-
-# Якщо опція JIZHAK_BUILD_TESTS увімкнена, CMake шукатиме CMakeLists.txt у папці /tests
-if(JIZHAK_BUILD_TESTS)
-    # Для тестів зазвичай потрібен GoogleTest. vcpkg встановить його,
-    # а find_package знайде.
-    # find_package(GTest CONFIG REQUIRED)
+if (JIZHAK_BUILD_TESTS)
     add_subdirectory(tests)
 endif()
 
-# Якщо опція JIZHAK_BUILD_EXAMPLE увімкнена, CMake шукатиме CMakeLists.txt у папці /example
-if(JIZHAK_BUILD_EXAMPLE)
+if (JIZHAK_BUILD_EXAMPLE)
     add_subdirectory(example)
 endif()
