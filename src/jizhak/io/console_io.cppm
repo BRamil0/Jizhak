@@ -12,7 +12,7 @@ module;
 #include "fmt/format.h"
 
 export module jizhak.io.console;
-import std;
+import jizhak.std;
 
 export namespace jzh::concepts {
     template <typename T>

@@ -1,7 +1,8 @@
-import std;
+import jizhak.std;
 import jizhak;
 
 using namespace std::string_literals;
+using namespace std::chrono_literals;
 
 std::future<int> test_func() {
     jzh::println("HELLO");
@@ -13,9 +14,9 @@ std::future<int> test_func() {
     co_return result + 100;
 }
 
-
 int main() {
-    using namespace jzh;;
+    std::print("test!");
+    using namespace jzh;
     try {
         auto tpm = jzh::make_tpm(4);
         auto еу = tpm->add_task([] {
@@ -23,10 +24,9 @@ int main() {
         });
 
         this_thread::add_task([] {
-            for (int i = 0; i <= 100; i++) {
-                println("Число: {}", i);
-            };
-            jzh::println("Все добре");
+            jzh::println("clang: {}", jzh::compiler::clang);
+            jzh::println("msvc: {}", jzh::compiler::msvc);
+            jzh::println("gcc: {}", jzh::compiler::gcc);
         });
 
         auto f = tpm->add_task(test_func);

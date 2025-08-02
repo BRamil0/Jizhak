@@ -1,5 +1,5 @@
 export module jizhak.thread_pool.task;
-import std;
+import jizhak.std;
 import jizhak.error;
 
 export namespace jzh {

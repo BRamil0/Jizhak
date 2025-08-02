@@ -1,6 +1,6 @@
 export module jizhak.reduction;
 
-import std;
+import jizhak.std;
 
 export namespace jzh::reduction {
     inline namespace symbol {

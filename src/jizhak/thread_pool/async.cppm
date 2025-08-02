@@ -1,6 +1,6 @@
 export module jizhak.thread_pool.async;
 
-import std;
+import jizhak.std;
 export import jizhak.error;
 export import jizhak.thread_pool.this_thread;
 export import jizhak.thread_pool.tpm_base;

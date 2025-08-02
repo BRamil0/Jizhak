@@ -4,7 +4,7 @@ export import jizhak.error;
 
 import jizhak.thread_pool.worker;
 
-import std;
+import jizhak.std;
 
 export namespace jzh {
     class ThreadPoolManagerBase {

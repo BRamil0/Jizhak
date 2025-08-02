@@ -3,7 +3,7 @@ export module jizhak.thread_pool.worker;
 export import jizhak.thread_pool.task;
 export import jizhak.error;
 
-import std;
+import jizhak.std;
 
 export namespace jzh {
     class BaseWorker {

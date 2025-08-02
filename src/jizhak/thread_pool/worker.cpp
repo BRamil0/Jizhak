@@ -1,5 +1,5 @@
 module jizhak.thread_pool.worker;
-import std;
+import jizhak.std;
 
 import jizhak.thread_pool.tpm;
 import jizhak.thread_pool.tpm_base;

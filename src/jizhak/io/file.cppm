@@ -3,7 +3,7 @@ module;
 
 export module jizhak.file;
 
-import std;
+import jizhak.std;
 export import jizhak.io.file;
 export import jizhak.error;
 

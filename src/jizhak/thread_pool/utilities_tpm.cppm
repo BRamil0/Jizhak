@@ -2,7 +2,7 @@
 
 export module jizhak.thread_pool.utilities_tpm;
 
-import std;
+import jizhak.std;
 import jizhak.error;
 import jizhak.thread_pool.task;
 import jizhak.thread_pool.worker;

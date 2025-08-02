@@ -7,7 +7,7 @@ module;
 #endif
 
 export module jizhak.io.file;
-import std;
+import jizhak.std;
 
 export namespace jzh {
 

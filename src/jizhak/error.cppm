@@ -1,6 +1,6 @@
 export module jizhak.error;
 
-import std;
+import jizhak.std;
 
 export namespace jzh::concepts {
     template <typename TErrorID>
