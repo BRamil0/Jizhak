@@ -116,7 +116,7 @@ export namespace jzh {
             return tasks_[new_task->task_info.id] = new_task;
         }
 
-        [[nodiscard]] virtual size_t size() const {
+        [[nodiscard]] virtual std::size_t size() const {
             std::scoped_lock lock(mutex_);
             return tasks_.size();
         }
@@ -156,8 +156,8 @@ export namespace jzh {
     protected:
         std::shared_ptr<BaseWorker> worker_ptr_{};
 
-        size_t total_tasks_ = 0;
-        size_t async_tasks_ = 0;
+        std::size_t total_tasks_ = 0;
+        std::size_t async_tasks_ = 0;
 
         std::atomic<bool> is_shutdown_ = false;
 
@@ -314,19 +314,19 @@ export namespace jzh {
             };
         }
 
-        [[nodiscard]] size_t total_tasks() const {
+        [[nodiscard]] std::size_t total_tasks() const {
             std::scoped_lock lock(mutex_);
             return total_tasks_;
         }
 
-        [[nodiscard]] size_t async_tasks() const {
+        [[nodiscard]] std::size_t async_tasks() const {
             std::scoped_lock lock(mutex_);
             return async_tasks_;
         }
     };
 
     struct WorkerInformationTableSorter {
-        size_t pending_tasks{};
+        std::size_t pending_tasks{};
         std::jthread::id id{};
 
         auto operator<=>(const WorkerInformationTableSorter& other) const = default;
@@ -628,7 +628,7 @@ export namespace jzh {
             return std::nullopt;
         }
 
-        [[nodiscard]] virtual size_t size() const {
+        [[nodiscard]] virtual std::size_t size() const {
             std::scoped_lock lock(mutex_);
             return workers_.size();
         }

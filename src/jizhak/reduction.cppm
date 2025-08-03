@@ -22,38 +22,38 @@ export namespace jzh::reduction {
         using u32s = std::u32string;
     }
     inline namespace string_literals {
-        constexpr std::string operator""_s(const char* string, size_t size) {
+        constexpr std::string operator""_s(const char* string, std::size_t size) {
             return std::string(string, size);
         }
-        constexpr std::wstring operator""_s(const wchar_t* string, size_t size) {
+        constexpr std::wstring operator""_s(const wchar_t* string, std::size_t size) {
             return std::wstring(string, size);
         }
 
-        constexpr std::u8string operator""_s(const char8_t* string, size_t size) {
+        constexpr std::u8string operator""_s(const char8_t* string, std::size_t size) {
             return std::u8string(string, size);
         }
-        constexpr std::u16string operator""_s(const char16_t* string, size_t size) {
+        constexpr std::u16string operator""_s(const char16_t* string, std::size_t size) {
             return std::u16string(string, size);
         }
-        constexpr std::u32string operator""_s(const char32_t* string, size_t size) {
+        constexpr std::u32string operator""_s(const char32_t* string, std::size_t size) {
             return std::u32string(string, size);
         }
 
 
-        constexpr std::string_view operator""_sv(const char* string, size_t size) {
+        constexpr std::string_view operator""_sv(const char* string, std::size_t size) {
             return std::string_view(string, size);
         }
-        constexpr std::wstring_view operator""_sv(const wchar_t* string, size_t size) {
+        constexpr std::wstring_view operator""_sv(const wchar_t* string, std::size_t size) {
             return std::wstring_view(string, size);
         }
 
-        constexpr std::u8string_view operator""_sv(const char8_t* string, size_t size) {
+        constexpr std::u8string_view operator""_sv(const char8_t* string, std::size_t size) {
             return std::u8string_view(string, size);
         }
-        constexpr std::u16string_view operator""_sv(const char16_t* string, size_t size) {
+        constexpr std::u16string_view operator""_sv(const char16_t* string, std::size_t size) {
             return std::u16string_view(string, size);
         }
-        constexpr std::u32string_view operator""_sv(const char32_t* string, size_t size) {
+        constexpr std::u32string_view operator""_sv(const char32_t* string, std::size_t size) {
             return std::u32string_view(string, size);
         }
     }

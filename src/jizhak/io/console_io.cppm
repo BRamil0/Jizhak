@@ -1,10 +1,32 @@
 module;
+
+import jizhak.std;
+// #include <string>
+// #include <string_view>
+// #include <vector>
+// #include <stdexcept>
+// #include <system_error>
+// #include <concepts>
+// #include <limits>
+// #include <tuple>
+// #include <utility>
+// #include <cwchar>
+// #include <type_traits>
+// #include <charconv>
+// #include <stdexcept>
+// #include <conio.h>
+// #include <cerrno>
+// #include <optional>
+// #include <memory>
+// #include <algorithm>
+
 #if defined(_WIN32)
 #include <windows.h>
 #undef max
 #undef min
 #else
 #include <unistd.h>
+#include <fcntl.h>
 #include <termios.h>
 #endif
 
@@ -12,7 +34,6 @@ module;
 #include "fmt/format.h"
 
 export module jizhak.io.console;
-import jizhak.std;
 
 export namespace jzh::concepts {
     template <typename T>

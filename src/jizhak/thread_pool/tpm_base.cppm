@@ -40,12 +40,12 @@ export namespace jzh {
 
         [[nodiscard]] virtual std::expected<TaskPointer, JizhakError> find_task(Task::id_t task_id) const = 0;
 
-        [[nodiscard]] virtual size_t size() const = 0;
+        [[nodiscard]] virtual std::size_t size() const = 0;
 
 
-        [[nodiscard]] virtual size_t number_tasks() const = 0;
+        [[nodiscard]] virtual std::size_t number_tasks() const = 0;
 
-        [[nodiscard]] virtual size_t number_workers() const = 0;
+        [[nodiscard]] virtual std::size_t number_workers() const = 0;
 
 
         [[nodiscard]] virtual bool is_there_task() const = 0;

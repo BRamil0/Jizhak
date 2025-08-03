@@ -53,7 +53,7 @@ export namespace jzh {
 
         virtual std::optional<std::deque<TaskPointer>> yield_half_of_tasks();
 
-        [[nodiscard]] size_t size() const;
+        [[nodiscard]] std::size_t size() const;
 
         [[nodiscard]] bool empty() const;
 
@@ -73,8 +73,8 @@ export namespace jzh {
 
     struct WorkerInfo {
         std::jthread::id id{};
-        size_t total_tasks = 0;
-        size_t async_tasks = 0;
+        std::size_t total_tasks = 0;
+        std::size_t async_tasks = 0;
         bool is_shutting_down = false;
         std::unordered_map<Task::id_t, TaskPointer> tasks{};
     };
