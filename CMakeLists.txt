@@ -10,6 +10,7 @@ project(Jizhak LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(NOT_USE_NATIVE_STD OFF)
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     if (CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "GNU")
@@ -56,6 +57,34 @@ if (!CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
 endif()
 
 add_library(Jizhak)
+
+if (NOT_USE_NATIVE_STD)
+    if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
+        # --- Крок 1: Знаходимо системний std.cc ---
+        find_file(STD_MODULE_SYSTEM_PATH NAMES std.cc HINTS ${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES}
+                  PATH_SUFFIXES bits DOC "Шлях до системного файлу std.cc" REQUIRED)
+        message(STATUS "Знайдено системний std.cc за шляхом: ${STD_MODULE_SYSTEM_PATH}")
+
+        # --- Крок 2: Копіюємо std.cc в директорію збірки ---
+        set(STD_MODULE_LOCAL_PATH ${CMAKE_CURRENT_BINARY_DIR}/std.cc)
+        configure_file(${STD_MODULE_SYSTEM_PATH} ${STD_MODULE_LOCAL_PATH} COPYONLY)
+
+        # --- Крок 3: Створюємо повноцінну бібліотеку-модуль для std ---
+        # Важливо: ми створюємо бібліотеку, але не передаємо їй джерела одразу.
+        add_library(std_module)
+
+        # --- Крок 4: Оголошуємо наш скопійований std.cc як ІНТЕРФЕЙС МОДУЛЯ ---
+        # ЦЕЙ БЛОК ВИРІШУЄ ПОМИЛКУ "not found in a FILE_SET".
+        target_sources(std_module PUBLIC
+            FILE_SET CXX_MODULES
+            BASE_DIRS ${CMAKE_CURRENT_BINARY_DIR}
+            FILES ${STD_MODULE_LOCAL_PATH}
+        )
+
+        # --- Крок 5: Пов'язуємо нашу головну бібліотеку з модулем std ---
+        target_link_libraries(Jizhak PRIVATE std_module)
+    endif()
+endif()
 
 target_link_libraries(Jizhak PUBLIC fmt::fmt)
 target_link_libraries(Jizhak PUBLIC Boost::locale)
