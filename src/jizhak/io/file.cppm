@@ -1,15 +1,17 @@
 module;
 #include "boost/locale.hpp"
 
-export module jizhak.file;
-
-#if defined(USE_OF_STD_MODULE)
-import std;
-#else
+#if !defined(USE_OF_STD_MODULE)
 #include <string>
 #include <string_view>
 #include <optional>
 #include <filesystem>
+#endif
+
+export module jizhak.file;
+
+#if defined(USE_OF_STD_MODULE)
+import std;
 #endif
 
 export import jizhak.io.file;
