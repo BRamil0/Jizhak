@@ -1,6 +1,19 @@
+module;
+
+#if !defined(USE_OF_STD_MODULE)
+#include <compare>
+#include <concepts>
+#include <exception>
+#include <string>
+#include <string_view>
+#include <type_traits>
+#endif
+
 export module jizhak.error;
 
-import jizhak.std;
+#if defined(USE_OF_STD_MODULE)
+import std;
+#endif
 
 export namespace jzh::concepts {
     template <typename TErrorID>

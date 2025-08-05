@@ -1,10 +1,26 @@
+module;
+
+
+#if !defined(USE_OF_STD_MODULE)
+
+#include <cstddef>
+#include <deque>
+#include <expected>
+#include <map>
+#include <optional>
+#include <thread>
+#include <unordered_map>
+#endif
+
+
 export module jizhak.thread_pool.tpm_base;
 
 export import jizhak.error;
-
 import jizhak.thread_pool.worker;
 
-import jizhak.std;
+#if defined(USE_OF_STD_MODULE)
+import std;
+#endif
 
 export namespace jzh {
     class ThreadPoolManagerBase {

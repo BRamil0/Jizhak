@@ -1,5 +1,34 @@
+module;
+
+#if !defined(USE_OF_STD_MODULE)
+#include <atomic>
+#include <chrono>
+#include <concepts>
+#include <condition_variable>
+#include <deque>
+#include <expected>
+#include <functional>
+#include <future>
+#include <map>
+#include <memory>
+#include <mutex>
+#include <optional>
+#include <ranges>
+#include <stdexcept>
+#include <string>
+#include <thread>
+#include <tuple>
+#include <type_traits>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+#endif
+
 export module jizhak.thread_pool.tpm;
-import jizhak.std;
+
+#if defined(USE_OF_STD_MODULE)
+import std;
+#endif
 
 import jizhak.thread_pool.tpm_base;
 export import jizhak.thread_pool.task;

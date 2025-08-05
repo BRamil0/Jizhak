@@ -1,8 +1,21 @@
+module;
+
+#if !defined(USE_OF_STD_MODULE)
+#include <memory>
+#include <future>
+#include <functional>
+#include <utility>
+#include <type_traits>
+#endif
+
 export module jizhak.thread_pool.this_thread;
 
 import jizhak.thread_pool.tpm_base;
 import jizhak.thread_pool.task;
-import jizhak.std;
+
+#if defined(USE_OF_STD_MODULE)
+import std;
+#endif
 
 
 namespace jzh::this_thread {

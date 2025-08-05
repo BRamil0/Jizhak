@@ -1,9 +1,27 @@
+module;
+
+#if !defined(USE_OF_STD_MODULE)
+#include <atomic>
+#include <condition_variable>
+#include <cstddef>
+#include <deque>
+#include <functional>
+#include <mutex>
+#include <optional>
+#include <random>
+#include <thread>
+#include <unordered_map>
+#endif
+
 export module jizhak.thread_pool.worker;
 
 export import jizhak.thread_pool.task;
 export import jizhak.error;
 
-import jizhak.std;
+#if defined(USE_OF_STD_MODULE)
+import std;
+#endif
+
 
 export namespace jzh {
     class BaseWorker {

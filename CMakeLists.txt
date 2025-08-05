@@ -10,6 +10,7 @@ project(Jizhak LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(USE_OF_STD_MODULE OFF)
 set(NOT_USE_NATIVE_STD OFF)
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
@@ -18,6 +19,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
         message(STATUS "Clang-CL (in VS) CXX Flags: ${CMAKE_CXX_FLAGS}")
 
     else()
+        set(USE_OF_STD_MODULE ON)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4 /permissive- /Zc:__cplusplus") # /Wall /WX
         message(STATUS "MSVC CXX Flags: ${CMAKE_CXX_FLAGS}")
     endif()
@@ -57,6 +59,10 @@ if (!CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
 endif()
 
 add_library(Jizhak)
+
+if (USE_OF_STD_MODULE)
+    target_compile_definitions(Jizhak PRIVATE USE_OF_STD_MODULE)
+endif()
 
 if (NOT_USE_NATIVE_STD)
     if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")

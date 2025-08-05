@@ -1,5 +1,23 @@
+module;
+
+#if !defined(USE_OF_STD_MODULE)
+#include <atomic>
+#include <chrono>
+#include <exception>
+#include <functional>
+#include <memory>
+#include <optional>
+#include <string>
+#include <thread>
+#include <utility>
+#endif
+
 export module jizhak.thread_pool.task;
-import jizhak.std;
+
+#if defined(USE_OF_STD_MODULE)
+import std;
+#endif
+
 import jizhak.error;
 
 export namespace jzh {

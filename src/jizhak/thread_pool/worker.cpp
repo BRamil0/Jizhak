@@ -1,5 +1,19 @@
 module jizhak.thread_pool.worker;
-import jizhak.std;
+
+#if defined(USE_OF_STD_MODULE)
+import std;
+#else
+#include <algorithm>
+#include <cstddef>
+#include <exception>
+#include <mutex>
+#include <optional>
+#include <ranges>
+#include <random>
+#include <thread>
+#include <utility>
+#include <vector>
+#endif
 
 import jizhak.thread_pool.tpm;
 import jizhak.thread_pool.tpm_base;

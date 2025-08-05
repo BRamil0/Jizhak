@@ -1,16 +1,17 @@
 module;
 
-import jizhak.std;
-// #include <filesystem>
-// #include <stdexcept>
-// #include <system_error>
-// #include <string>
-// #include <optional>
-// #include <vector>
-// #include <cstddef>
-// #include <utility>
-// #include <span>
-// #include <cerrno>
+#if !defined(USE_OF_STD_MODULE)
+#include <filesystem>
+#include <stdexcept>
+#include <system_error>
+#include <string>
+#include <optional>
+#include <vector>
+#include <cstddef>
+#include <utility>
+#include <span>
+#include <cerrno>
+#endif
 
 #if defined(_WIN32)
 #include <windows.h>
@@ -20,6 +21,10 @@ import jizhak.std;
 #endif
 
 export module jizhak.io.file;
+
+#if defined(USE_OF_STD_MODULE)
+import std;
+#endif
 
 export namespace jzh {
 

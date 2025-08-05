@@ -1,8 +1,29 @@
-// utilities_tpm.cppm
+module;
+
+#if !defined(USE_OF_STD_MODULE)
+#include <algorithm>
+#include <atomic>
+#include <compare>
+#include <cstddef>
+#include <deque>
+#include <expected>
+#include <map>
+#include <memory>
+#include <mutex>
+#include <optional>
+#include <ranges>
+#include <thread>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+#endif
 
 export module jizhak.thread_pool.utilities_tpm;
 
-import jizhak.std;
+#if defined(USE_OF_STD_MODULE)
+import std;
+#endif
+
 import jizhak.error;
 import jizhak.thread_pool.task;
 import jizhak.thread_pool.worker;

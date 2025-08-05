@@ -1,24 +1,25 @@
 module;
 
-import jizhak.std;
-// #include <string>
-// #include <string_view>
-// #include <vector>
-// #include <stdexcept>
-// #include <system_error>
-// #include <concepts>
-// #include <limits>
-// #include <tuple>
-// #include <utility>
-// #include <cwchar>
-// #include <type_traits>
-// #include <charconv>
-// #include <stdexcept>
-// #include <conio.h>
-// #include <cerrno>
-// #include <optional>
-// #include <memory>
-// #include <algorithm>
+#if !defined(USE_OF_STD_MODULE)
+#include <string>
+#include <string_view>
+#include <vector>
+#include <stdexcept>
+#include <system_error>
+#include <concepts>
+#include <limits>
+#include <tuple>
+#include <utility>
+#include <cwchar>
+#include <type_traits>
+#include <charconv>
+#include <stdexcept>
+#include <conio.h>
+#include <cerrno>
+#include <optional>
+#include <memory>
+#include <algorithm>
+#endif
 
 #if defined(_WIN32)
 #include <windows.h>
@@ -32,6 +33,10 @@ import jizhak.std;
 
 #include "boost/locale.hpp"
 #include "fmt/format.h"
+
+#if defined(USE_OF_STD_MODULE)
+import std;
+#endif
 
 export module jizhak.io.console;
 

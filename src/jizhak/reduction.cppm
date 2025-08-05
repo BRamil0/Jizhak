@@ -1,6 +1,16 @@
+module;
+
+#if !defined(USE_OF_STD_MODULE)
+#include <cstddef>
+#include <string>
+#include <string_view>
+#endif
+
 export module jizhak.reduction;
 
-import jizhak.std;
+#if defined(USE_OF_STD_MODULE)
+import std;
+#endif
 
 export namespace jzh::reduction {
     inline namespace symbol {
