@@ -40,11 +40,12 @@ export namespace jzh::this_thread {
     }
 
     inline TaskPointer add_task(TaskPointer& task) {
-        if (const auto tpm = get_tpm().lock())
+        if (const auto tpm = get_tpm().lock()) {
             if (auto result = tpm->add_task(task); result.has_value())
                 return task;
             else
                 throw result.error();
+        }
 
         if (auto result = task(); result.has_value())
             throw result.value();
