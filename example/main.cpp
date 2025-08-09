@@ -1,8 +1,11 @@
-import jizhak.std;
-import jizhak;
+#if defined(USE_OF_STD_MODULE)
+import std;
+#else
+#include <future>
+#include <coroutine>
+#endif
 
-using namespace std::string_literals;
-using namespace std::chrono_literals;
+import jizhak;
 
 std::future<int> test_func() {
     jzh::println("HELLO");
@@ -15,7 +18,7 @@ std::future<int> test_func() {
 }
 
 int main() {
-    std::print("test!");
+    jzh::print("test!");
     using namespace jzh;
     try {
         auto tpm = jzh::make_tpm(4);
