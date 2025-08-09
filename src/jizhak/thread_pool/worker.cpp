@@ -1,8 +1,8 @@
-module jizhak.thread_pool.worker;
+module;
 
-#if defined(USE_OF_STD_MODULE)
-import std;
-#else
+#if !defined(USE_OF_STD_MODULE)
+#include <functional>
+#include <deque>
 #include <algorithm>
 #include <cstddef>
 #include <exception>
@@ -15,6 +15,12 @@ import std;
 #include <vector>
 #endif
 
+module jizhak.thread_pool.worker;
+
+#if defined(USE_OF_STD_MODULE)
+import std;
+#endif
+
 import jizhak.thread_pool.tpm;
 import jizhak.thread_pool.tpm_base;
 import jizhak.thread_pool.this_thread;
@@ -24,7 +30,30 @@ namespace jzh {
     using OptionalError = BaseWorker::OptionalError;
 
     // BaseWorker: protected
-    void BaseWorker::run_loop(std::stop_token token) {
+    OptionalError BaseWorker::steal_task() {
+        return std::nullopt;
+    }
+
+    // BaseWorker: public
+    void BaseWorker::start(std::function<void(std::stop_token)> work_function) {
+        this->thread = std::jthread(std::move(work_function));
+        this->id = thread.get_id();
+    }
+
+    void BaseWorker::add_task(TaskPointer new_task) {
+        {
+            std::scoped_lock lock(queue_mutex);
+            tasks.push_back(std::move(new_task));
+        }
+        cv.notify_one();
+    }
+
+    std::optional<JizhakError> BaseWorker::remove_task([[maybe_unused]] Task::id_t task_id) {
+        std::scoped_lock lock(queue_mutex);
+        return std::nullopt;
+    }
+
+        void BaseWorker::run_loop(std::stop_token token) {
         auto tpm = this_thread::get_tpm().lock();
         if (!tpm) return;
 
@@ -83,28 +112,6 @@ namespace jzh {
         }
     }
 
-    OptionalError BaseWorker::steal_task() {
-        return std::nullopt;
-    }
-
-    // BaseWorker: public
-    void BaseWorker::start(std::function<void(std::stop_token)> work_function) {
-        this->thread = std::jthread(std::move(work_function));
-        this->id = thread.get_id();
-    }
-
-    void BaseWorker::add_task(TaskPointer new_task) {
-        {
-            std::scoped_lock lock(queue_mutex);
-            tasks.push_back(std::move(new_task));
-        }
-        cv.notify_one();
-    }
-
-    std::optional<JizhakError> BaseWorker::remove_task([[maybe_unused]] Task::id_t task_id) {
-        std::scoped_lock lock(queue_mutex);
-        return std::nullopt;
-    }
 
     void BaseWorker::notify() {
         this->cv.notify_one();

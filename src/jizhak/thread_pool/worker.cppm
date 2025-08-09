@@ -26,9 +26,6 @@ import std;
 export namespace jzh {
     class BaseWorker {
     public:
-        template <typename TWorkerRegistry, typename TTaskRegistry, typename TWorker>
-        friend class ThreadPoolManager;
-
         using OptionalError = std::optional<JizhakError>;
 
     private:
@@ -40,8 +37,6 @@ export namespace jzh {
     protected:
         std::deque<TaskPointer> tasks{};
         mutable std::mutex queue_mutex{};
-
-        void run_loop(std::stop_token token);
 
         virtual OptionalError steal_task();
 
@@ -60,6 +55,8 @@ export namespace jzh {
         void add_task(TaskPointer new_task);
 
         std::optional<JizhakError> remove_task(Task::id_t task_id);
+
+        void run_loop(std::stop_token token);
 
         void notify();
 
