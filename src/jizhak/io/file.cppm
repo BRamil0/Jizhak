@@ -173,8 +173,14 @@ namespace jzh {
             size_t available_chars = boost::locale::conv::utf_to_utf<char32_t>(text_buffer).length();
             size_t chars_to_process = std::min(available_chars, chars_to_read);
 
-            size_t byte_pos_to_cut = boost::locale::boundary::character(text_buffer.begin(), text_buffer.end(), chars_to_process).base() - text_buffer.begin();
+            using namespace boost::locale::boundary;
+            boost::locale::boundary::index_type_map<char> map(boost::locale::boundary::character); // тип індексації — по символах
+            map.set_text(text_buffer);
 
+            auto it = map.begin();
+            std::advance(it, chars_to_process);
+
+            size_t byte_pos_to_cut = it->offset();
             std::string_view view_to_convert(text_buffer.data(), byte_pos_to_cut);
 
             if constexpr (std::is_same_v<T, std::string>) {
