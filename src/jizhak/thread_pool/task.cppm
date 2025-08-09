@@ -98,7 +98,7 @@ export namespace jzh {
 
         explicit Task(Function new_func) : function(std::move(new_func)) {}
         explicit Task(Function new_func, const TaskInfo& task_info) : function(std::move(new_func)), task_info(task_info) {}
-        explicit Task(const TaskInfo& task_info, Function new_func) : task_info(task_info), function(std::move(new_func)) {}
+        explicit Task(const TaskInfo& task_info, Function new_func) : function(std::move(new_func)), task_info(task_info) {}
 
         std::optional<JizhakError> operator()() {
             if (function) function();

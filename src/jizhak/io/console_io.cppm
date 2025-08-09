@@ -60,8 +60,9 @@ export namespace jzh {
 
     protected:
         virtual void write_to_console(std::string_view str) {
-            if (str.empty())
+            if (str.empty()) {
                 return;
+            }
 
             #if defined(_WIN32)
                 if (str.size() > static_cast<size_t>(std::numeric_limits<int>::max())) {
@@ -359,8 +360,9 @@ export namespace jzh {
     class ConsoleErrorIO : public ConsoleBaseIO {
     private:
         void write_to_console(std::string_view str) override {
-            if (str.empty())
+            if (str.empty()) {
                 return;
+            }
 
             #if defined(_WIN32)
                 if (str.size() > static_cast<size_t>(std::numeric_limits<int>::max())) {

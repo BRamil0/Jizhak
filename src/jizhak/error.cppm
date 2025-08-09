@@ -57,7 +57,7 @@ export namespace jzh {
     };
 
     template <typename T> requires concepts::is_supported_enum<T>
-    constexpr std::string_view default_message_for(T code_id) {
+    constexpr std::string_view default_message_for([[maybe_unused]] T code_id) {
         static_assert(dependent_false<T>, "You forgot to overload the function");
         return {};
     };
