@@ -7,8 +7,9 @@ import std;
 
 import jizhak;
 using namespace jzh::using_thread;
+using namespace jzh::using_reduction;
 
-std::future<int> add_2(int x = 2, jzh::reduction::u8str text = u8"Додаємо 2 до {}:") {
+std::future<int> add_2(int x = 2, reduction::u8str text = u8"Додаємо 2 до {}:") {
     const int result = co_await thread::this_thread::add_task([x, text] {
         jzh::println(text, x);
         return 2;
