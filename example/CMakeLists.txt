@@ -1,4 +1,4 @@
-add_executable(example example.cpp)
+add_executable(example main_example.cpp)
 
 set(CMAKE_CXX_SCAN_FOR_MODULES ON)
 
