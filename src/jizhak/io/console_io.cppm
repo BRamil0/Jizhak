@@ -65,42 +65,48 @@ export namespace jzh {
             }
 
             #if defined(_WIN32)
-                if (str.size() > static_cast<size_t>(std::numeric_limits<int>::max())) {
+                if (str.size() > static_cast<size_t>(std::numeric_limits<int>::max()))
                     throw std::length_error("String size is too large for Windows API");
-                }
+
 
                 HANDLE h_std_err = GetStdHandle(STD_OUTPUT_HANDLE);
-                if (h_std_err == INVALID_HANDLE_VALUE) {
-                    throw std::system_error(GetLastError(), std::system_category(), "Failed to get standard error handle");
-                }
+                if (h_std_err == INVALID_HANDLE_VALUE)
+                    throw std::system_error(static_cast<int>(GetLastError()), std::system_category(), "Failed to get standard error handle");
+
 
                 DWORD mode;
                 if (GetConsoleMode(h_std_err, &mode)) {
                     const int str_size_as_int = static_cast<int>(str.size());
                     int size_needed = MultiByteToWideChar(CP_UTF8, 0, str.data(), str_size_as_int, nullptr, 0);
-                    if (size_needed == 0) {
-                        throw std::system_error(GetLastError(), std::system_category(), "MultiByteToWideChar failed to calculate size");
-                    }
+                    if (size_needed == 0)
+                        throw std::system_error(static_cast<int>(GetLastError()), std::system_category(), "MultiByteToWideChar failed to calculate size");
 
-                    std::wstring w_str(size_needed, 0);
+
+                    std::wstring w_str(static_cast<size_t>(size_needed), 0);
                     MultiByteToWideChar(CP_UTF8, 0, str.data(), str_size_as_int, &w_str[0], size_needed);
 
+                    if (w_str.size() > std::numeric_limits<DWORD>::max())
+                        throw std::length_error("String is too large for WriteConsoleW");
+
+
                     DWORD chars_written = 0;
-                    if (!WriteConsoleW(h_std_err, w_str.c_str(), w_str.size(), &chars_written, nullptr)) {
-                         throw std::system_error(GetLastError(), std::system_category(), "Failed to write to console");
-                    }
+                    if (!WriteConsoleW(h_std_err, w_str.c_str(), static_cast<DWORD>(w_str.size()), &chars_written, nullptr))
+                         throw std::system_error(static_cast<int>(GetLastError()), std::system_category(), "Failed to write to console");
+
                 } else {
+                    if (str.size() > std::numeric_limits<DWORD>::max())
+                        throw std::length_error("String is too large for WriteFile");
+
                     DWORD bytes_written = 0;
-                    if (!WriteFile(h_std_err, str.data(), str.size(), &bytes_written, nullptr) || bytes_written != str.size()) {
-                        throw std::system_error(GetLastError(), std::system_category(), "Failed to write to redirected error stream");
-                    }
+                    if (!WriteFile(h_std_err, str.data(), static_cast<DWORD>(str.size()), &bytes_written, nullptr) || bytes_written != str.size())
+                        throw std::system_error(static_cast<int>(GetLastError()), std::system_category(), "Failed to write to redirected error stream");
+
                 }
 
             #else // POSIX
                 ssize_t result = ::write(STDOUT_FILENO, str.data(), str.size());
-                if (result == -1) {
+                if (result == -1)
                     throw std::system_error(errno, std::system_category(), "Failed to write to error stream");
-                }
             #endif
         }
         [[nodiscard]] static std::string to_utf8(auto const& input) {
@@ -204,7 +210,7 @@ export namespace jzh {
                 }
 
                 std::string formatted = fmt::format("{}", formatted_arg);
-                this->write_to_console(this->sep);
+                this->write_to_console(formatted);
 
                 first = false;
             };
@@ -365,42 +371,47 @@ export namespace jzh {
             }
 
             #if defined(_WIN32)
-                if (str.size() > static_cast<size_t>(std::numeric_limits<int>::max())) {
+                if (str.size() > static_cast<size_t>(std::numeric_limits<int>::max()))
                     throw std::length_error("String size is too large for Windows API");
-                }
+
 
                 HANDLE h_std_err = GetStdHandle(STD_ERROR_HANDLE);
-                if (h_std_err == INVALID_HANDLE_VALUE) {
-                    throw std::system_error(GetLastError(), std::system_category(), "Failed to get standard error handle");
-                }
+                if (h_std_err == INVALID_HANDLE_VALUE)
+                    throw std::system_error(static_cast<int>(GetLastError()), std::system_category(), "Failed to get standard error handle");
+
 
                 DWORD mode;
                 if (GetConsoleMode(h_std_err, &mode)) {
                     const int str_size_as_int = static_cast<int>(str.size());
                     int size_needed = MultiByteToWideChar(CP_UTF8, 0, str.data(), str_size_as_int, nullptr, 0);
-                    if (size_needed == 0) {
-                        throw std::system_error(GetLastError(), std::system_category(), "MultiByteToWideChar failed to calculate size");
-                    }
+                    if (size_needed == 0)
+                        throw std::system_error(static_cast<int>(GetLastError()), std::system_category(), "MultiByteToWideChar failed to calculate size");
 
-                    std::wstring w_str(size_needed, 0);
+
+                    std::wstring w_str(static_cast<size_t>(size_needed), 0);
                     MultiByteToWideChar(CP_UTF8, 0, str.data(), str_size_as_int, &w_str[0], size_needed);
 
+                    if (str.size() > std::numeric_limits<DWORD>::max())
+                        throw std::length_error("String is too large for WriteFile");
+
                     DWORD chars_written = 0;
-                    if (!WriteConsoleW(h_std_err, w_str.c_str(), w_str.size(), &chars_written, nullptr)) {
-                         throw std::system_error(GetLastError(), std::system_category(), "Failed to write to console");
-                    }
+                    if (!WriteConsoleW(h_std_err, w_str.c_str(), static_cast<DWORD>(w_str.size()), &chars_written, nullptr))
+                         throw std::system_error(static_cast<int>(GetLastError()), std::system_category(), "Failed to write to console");
+
                 } else {
+                    if (str.size() > std::numeric_limits<DWORD>::max())
+                        throw std::length_error("String is too large for WriteFile");
+
                     DWORD bytes_written = 0;
-                    if (!WriteFile(h_std_err, str.data(), str.size(), &bytes_written, nullptr) || bytes_written != str.size()) {
-                        throw std::system_error(GetLastError(), std::system_category(), "Failed to write to redirected error stream");
-                    }
+                    if (!WriteFile(h_std_err, str.data(), static_cast<DWORD>(str.size()), &bytes_written, nullptr) || bytes_written != str.size())
+                        throw std::system_error(static_cast<int>(GetLastError()), std::system_category(), "Failed to write to redirected error stream");
+
                 }
 
             #else // POSIX
                 ssize_t result = ::write(STDERR_FILENO, str.data(), str.size());
-                if (result == -1) {
+                if (result == -1)
                     throw std::system_error(errno, std::system_category(), "Failed to write to error stream");
-                }
             #endif
         }
     };
