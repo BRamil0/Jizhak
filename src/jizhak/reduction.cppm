@@ -68,3 +68,7 @@ export namespace jzh::reduction {
         }
     }
 } // jzh::reduction
+
+export namespace jzh::using_reduction::reduction {
+    using namespace jzh::reduction;
+}
