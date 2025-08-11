@@ -23,7 +23,7 @@ import std;
 #endif
 
 
-export namespace jzh {
+export namespace jzh::thread {
     class BaseWorker {
     public:
         using OptionalError = std::optional<JizhakError>;
@@ -93,4 +93,4 @@ export namespace jzh {
         bool is_shutting_down = false;
         std::unordered_map<Task::id_t, TaskPointer> tasks{};
     };
-} // namespace jzh
+} // namespace jzh::thread

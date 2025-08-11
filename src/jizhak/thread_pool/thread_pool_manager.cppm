@@ -38,8 +38,8 @@ export import jizhak.thread_pool.this_thread;
 export import jizhak.error;
 
 export namespace jzh::concepts {
-    template <typename TWorker> concept is_supported_worker = requires(TWorker worker, TaskPointer task) {
-        requires std::is_base_of_v<BaseWorker, TWorker>;
+    template <typename TWorker> concept is_supported_worker = requires(TWorker worker, thread::TaskPointer task) {
+        requires std::is_base_of_v<thread::BaseWorker, TWorker>;
         requires std::default_initializable<TWorker>;
         { worker.start(std::function<void(std::stop_token)>()) } -> std::same_as<void>;
         { worker.add_task(task) } -> std::same_as<void>;
@@ -51,16 +51,16 @@ export namespace jzh::concepts {
     };
 
     template <typename TInfoWorkerTable, typename TWorker> concept is_supported_info_table = requires(
-    TInfoWorkerTable table, TaskPointer task, std::shared_ptr<TWorker> worker_ptr) {
+    TInfoWorkerTable table, thread::TaskPointer task, std::shared_ptr<TWorker> worker_ptr) {
         { TInfoWorkerTable(worker_ptr) };
         { table.add_task(task) } -> std::same_as<void>;
         { table.remove_task(task->task_info.id) } -> std::same_as<std::optional<JizhakError>>;
-        { table.get_worker() } -> std::same_as<std::shared_ptr<BaseWorker>>;
-        { table.operator->() } -> std::same_as<BaseWorker&>;
+        { table.get_worker() } -> std::same_as<std::shared_ptr<thread::BaseWorker>>;
+        { table.operator->() } -> std::same_as<thread::BaseWorker&>;
         };
 } // namespace jzh::concepts
 
-export namespace jzh {
+export namespace jzh::thread {
     template <typename TWorkerRegistry     = WorkerRegistry<>,
               typename TTaskRegistry       = TaskRegistry,
               typename TWorker             = Worker>
@@ -518,4 +518,4 @@ export namespace jzh {
         tpm->register_this_thread();
         return tpm;
     }
-} // namespace jzh
+} // namespace jzh::thread

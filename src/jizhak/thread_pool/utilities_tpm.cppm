@@ -29,7 +29,7 @@ import jizhak.thread_pool.task;
 import jizhak.thread_pool.worker;
 import jizhak.thread_pool.tpm_base;
 
-export namespace jzh {
+export namespace jzh::thread {
     struct TaskRegistry {
     protected:
         std::unordered_map<Task::id_t, TaskPointer> tasks_{};
@@ -664,4 +664,4 @@ export namespace jzh {
             workers_.clear();
         }
     };
-}
+} // namespace jzh::thread

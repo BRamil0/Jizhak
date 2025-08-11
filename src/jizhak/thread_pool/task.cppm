@@ -20,7 +20,7 @@ import std;
 
 import jizhak.error;
 
-export namespace jzh {
+export namespace jzh::thread {
     struct Task;
     struct TaskInfo;
 
@@ -149,4 +149,4 @@ export namespace jzh {
     TaskPointer make_task(Task::Function func, const TaskInfoField& task_info_field) {
         return TaskPointer(std::make_shared<Task>(std::move(func), TaskInfo(task_info_field)));
     }
-} // namespace jzh
+} // namespace jzh::thread

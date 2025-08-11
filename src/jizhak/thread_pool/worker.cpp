@@ -26,7 +26,7 @@ import jizhak.thread_pool.tpm_base;
 import jizhak.thread_pool.this_thread;
 import jizhak.thread_pool.task;
 
-namespace jzh {
+namespace jzh::thread {
     using OptionalError = BaseWorker::OptionalError;
 
     // BaseWorker: protected
@@ -209,4 +209,4 @@ namespace jzh {
 
         return JizhakError{JizhakErrorID::cannot_steal_task};
     }
-} // namespace jzh
+} // namespace jzh::thread

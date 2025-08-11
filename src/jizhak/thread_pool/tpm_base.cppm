@@ -22,7 +22,7 @@ import jizhak.thread_pool.worker;
 import std;
 #endif
 
-export namespace jzh {
+export namespace jzh::thread {
     class ThreadPoolManagerBase {
     public:
         friend class BaseWorker;
@@ -70,4 +70,4 @@ export namespace jzh {
 
         virtual std::optional<std::deque<TaskPointer>> steal_tasks_from(std::jthread::id victim_id) = 0;
     };
-}// namespace jzh
+}// namespace jzh::thread

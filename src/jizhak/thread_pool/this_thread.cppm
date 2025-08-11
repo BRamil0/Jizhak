@@ -18,11 +18,11 @@ import std;
 #endif
 
 
-namespace jzh::this_thread {
+namespace jzh::thread::this_thread {
     inline thread_local std::weak_ptr<ThreadPoolManagerBase> current_tpm{};
 }
 
-export namespace jzh::this_thread {
+export namespace jzh::thread::this_thread {
     inline void unregister_this_thread() {
         current_tpm = std::weak_ptr<ThreadPoolManagerBase>{};
     }
@@ -84,4 +84,4 @@ export namespace jzh::this_thread {
     add_task(F&& func, Args&&... args) {
         return add_task(TaskInfo(), std::forward<F>(func), std::forward<Args>(args)...);
     }
-} // jzh::this_thread
+} // jzh::thread::this_thread

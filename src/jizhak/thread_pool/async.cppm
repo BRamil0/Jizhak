@@ -48,8 +48,7 @@ export namespace std {
     };
 } // namespace std
 
-export namespace jzh {
-    // FutureAwaiter залишається без змін, він все ще правильний
+export namespace jzh::thread {
     template <typename T>
     struct FutureAwaiter {
         std::future<T> future;
@@ -125,4 +124,4 @@ export namespace jzh {
         auto tpm_ptr = this_thread::get_tpm();
         return FutureAwaiter<T>{ std::move(result_pair.first), tpm_ptr };
     }
-} // namespace jzh
+} // namespace jzh::thread
