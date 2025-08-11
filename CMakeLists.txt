@@ -63,7 +63,7 @@ if (MINGW)
     message(STATUS "MinGW detected. Enabling static runtime linking.")
 endif()
 
-if (!USE_OF_CONAN)
+if (NOT USE_OF_CONAN)
     # fmt
     find_package(fmt CONFIG QUIET)
     if (NOT fmt_FOUND)
