@@ -2,7 +2,9 @@ cmake_minimum_required(VERSION 4.0.3)
 
 include(FetchContent)
 
-if (!CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+set(USE_OF_STD_MODULE OFF)
+
+if (!CMAKE_CXX_COMPILER_ID MATCHES "MSVC" AND USE_OF_STD_MODULE)
     # https://github.com/Kitware/CMake/blob/v4.0.3/Help/dev/experimental.rst#c-import-std-supportclang++
     set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "d0edc3af-4c50-42ea-a356-e2862fe7a444")
     set(CMAKE_CXX_MODULE_STD ON)
@@ -13,7 +15,6 @@ project(Jizhak LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(USE_OF_STD_MODULE OFF)
 set(NOT_USE_NATIVE_STD OFF)
 
 
@@ -90,7 +91,7 @@ if (NOT USE_OF_CONAN)
 endif()
 
 set(CMAKE_CXX_SCAN_FOR_MODULES ON)
-if (!CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+if (!CMAKE_CXX_COMPILER_ID MATCHES "MSVC" AND USE_OF_STD_MODULE)
     set(CMAKE_CXX_EXTENSIONS ON)
 endif()
 
