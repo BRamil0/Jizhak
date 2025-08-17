@@ -1,6 +1,6 @@
 ### Приклади використання та невелика документація
 
-Імпортувати всю бібіотеку можна через модуль `jizhak`: у файлі [`jizhak.cppm`](../src/jizhak/jizhak.cppm).
+Імпортувати всю бібліотеку можна через модуль `jizhak`: у файлі [`jizhak.cppm`](../src/jizhak/jizhak.cppm).
 
 - [Модуль `jizhak.io`](io_example.uk.md).
 - [Модуль `jizhak.platform_info`](pi_example.uk.md)

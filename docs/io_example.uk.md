@@ -1,6 +1,6 @@
 #### Загальний модуль для імпорту `jizhak.io.console`: знаходиться у [`io.cppm`](../src/jizhak/io/io.cppm).
 
-## Робота з водом та виведом у консоль
+## Робота з вводом та виводом у консоль
 **Файл [`console_io.cppm`](../src/jizhak/io/console_io.cppm): Модуль `jizhak.io.console`.**
 - Підтримує типи рядків на базі `char`, `wchar_t`, `char8_t`, `char16_t` та `char32_t`.
 - Повністю підтримує Унікод (Unicode).
