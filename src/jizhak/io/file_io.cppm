@@ -21,6 +21,7 @@ module;
 #endif
 
 export module jizhak.io.file;
+export import jizhak.error;
 
 #if defined(USE_OF_STD_MODULE)
 import std;
@@ -148,10 +149,10 @@ export namespace jzh {
             return mode_ == FileMode::write || mode_ == FileMode::append || mode_ == FileMode::read_write;
         }
 
-        std::optional<std::string> open(const std::filesystem::path &file_path, const FileMode mode = FileMode::read_write) {
-            if (is_open()) {
-                return std::string("File is already open. Close it before opening a new one.");
-            }
+        std::optional<JizhakError> open(const std::filesystem::path &file_path, const FileMode mode = FileMode::read_write) {
+            if (is_open())
+                return JizhakError(JizhakErrorID::file_already_open, "File is already open. Close it before opening a new one.");
+
             this->file_path_ = file_path;
             this->mode_ = mode;
 
@@ -200,10 +201,10 @@ export namespace jzh {
             return std::nullopt;
         }
 
-        std::optional<std::string> close() noexcept {
-            if (!is_open()) {
-                return std::string("File is not open.");
-            };
+        std::optional<JizhakError> close() noexcept {
+            if (!is_open())
+                return JizhakError(JizhakErrorID::file_not_open,"File is not open.");
+
             #if defined(_WIN32)
                 CloseHandle(handle_);
             #else

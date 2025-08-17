@@ -54,6 +54,8 @@ export namespace jzh {
         shutting,
         thread_already_registered,
         the_established_thread_is_not_this_tpm,
+        file_already_open,
+        file_not_open,
     };
 
     template <typename T> requires concepts::is_supported_enum<T>
