@@ -13,7 +13,6 @@ module;
 #include <cwchar>
 #include <type_traits>
 #include <charconv>
-#include <stdexcept>
 #include <conio.h>
 #include <cerrno>
 #include <optional>
@@ -53,12 +52,26 @@ export namespace jzh::concepts {
 } // namespace jzh::concepts
 
 export namespace jzh {
+    /**
+     * @brief Базовий клас для роботи з консоллю.
+     */
     class ConsoleBaseIO {
     private:
+        /**
+         * @brief Роздільник між елементами для print_all() та println_all().
+         */
         std::string sep = " ";
+
+        /**
+         * @brief Закінчення яке додає println() та println_all().
+         */
         std::string end = "\n";
 
     protected:
+        /**
+         * @brief Низькорівнева функція запису рядків у консоль.
+         * @param str Рядок для запису, у форматі UTF-8.
+         */
         virtual void write_to_console(std::string_view str) {
             if (str.empty()) {
                 return;
@@ -109,6 +122,12 @@ export namespace jzh {
                     throw std::system_error(errno, std::system_category(), "Failed to write to error stream");
             #endif
         }
+
+        /**
+         * @brief Перекодовує будь-який Unicode рядок у формат UTF-8 за допомогою boost.locale.
+         * @param input Рядок у форматі UTF-8, UTF-16 чи UTF-32.
+         * @return std::string у форматі UTF-8.
+         */
         [[nodiscard]] static std::string to_utf8(auto const& input) {
             auto sv = std::basic_string_view(input);
             using CharT = typename decltype(sv)::value_type;
@@ -127,6 +146,12 @@ export namespace jzh {
                 return {};
             }
         }
+
+        /**
+         * @brief Якщо аргумент є рядком у будь-якому Unicode-форматі, перекодовує його в UTF-8.
+         * @param arg Аргумент будь-якого типу.
+         * @return Аргумент в UTF-8 (якщо це рядок) або без змін.
+         */
         [[nodiscard]] static auto convert_format_arg(auto const& arg) {
             using T = std::decay_t<decltype(arg)>;
 
@@ -174,6 +199,13 @@ export namespace jzh {
         void set_separator(std::string &new_sep) { sep = std::move(new_sep); }
         void set_end(std::string &new_end) { end = std::move(new_end); }
 
+        /**
+         * @brief Друкує форматований рядок в консоль.
+         * @tparam Fmt Тип форматного рядка (підтримувані символи).
+         * @tparam Args Типи аргументів для форматування.
+         * @param fmt Форматний рядок.
+         * @param args Аргументи для форматування; якщо це рядки в Unicode, вони перекодовуються в UTF-8. Довільна кількість аргументів.
+        */
         template <typename Fmt, typename... Args> requires(concepts::is_supported_string<Fmt>)
         void print(Fmt&& fmt, Args&&... args) {
             std::string fmt_as_utf8 = this->to_utf8(std::forward<Fmt>(fmt));
@@ -193,12 +225,25 @@ export namespace jzh {
             }
         }
 
+        /**
+         * @brief Друкує форматований рядок в консоль та додає закінчення (@c end).
+         * @tparam Fmt Тип форматного рядка (підтримувані символи).
+         * @tparam Args Типи аргументів для форматування.
+         * @param fmt Форматний рядок.
+         * @param args Аргументи для форматування; якщо це рядки в Unicode, вони перекодовуються в UTF-8. Довільна кількість аргументів.
+        */
         template<typename Fmt, typename... Args> requires(concepts::is_supported_string<Fmt>)
         void println(Fmt&& fmt, Args&&... args) {
             this->print(std::forward<Fmt>(fmt), std::forward<Args>(args)...);
             this->print(this->end);
         }
 
+        /**
+         * @brief Друкує будь-яку кількість елементів додавши роздільник (@c sep) між елементами.
+         * @tparam Args Типи аргументів, сумісні з fmt::format.
+         * @param args Будь-яка кількість елементів.
+         * @note Якщо аргумент є рядком у Unicode, він автоматично перекодовується у UTF-8.
+         */
         template<typename... Args>
         void print_all(Args&&... args) {
             bool first = true;
@@ -218,6 +263,12 @@ export namespace jzh {
             (print_one_with_space(std::forward<Args>(args)), ...);
         }
 
+        /**
+         * @brief Друкує будь-яку кількість елементів додавши роздільник (@c sep) між елементами, після останнього елементу додає закінчення (@c end).
+         * @tparam Args Типи аргументів, сумісні з fmt::format.
+         * @param args Будь-яка кількість елементів.
+         * @note Якщо аргумент є рядком у Unicode, він автоматично перекодовується у UTF-8.
+        */
         template<typename... Args>
         void println_all(Args&&... args) {
             this->print_all(std::forward<Args>(args)...);
@@ -225,8 +276,19 @@ export namespace jzh {
         }
     };
 
+    /**
+     * @brief Основний клас для роботи з консоллю.
+     */
     class ConsoleIO : public ConsoleBaseIO {
     protected:
+        /**
+         * @brief Читання рядків з консолі.
+         * @param buffer_size Розмір буфера.
+         * @param stop_chars Набір стоп символів.
+         * @param echo Якщо true — введені символи одразу відображаються у консолі.
+         * @return Рядок у форматі UTF-8 (без символу, що перервав читання).
+         *
+         */
         [[nodiscard]] virtual std::string read_interactive(size_t buffer_size, std::string_view stop_chars, bool echo) {
             #if defined(_WIN32)
                 std::wstring result_w; // Збираємо результат у wstring для коректної роботи з Unicode
@@ -327,6 +389,15 @@ export namespace jzh {
             return *this;
         }
 
+        /**
+         * @brief Функція для читання рядків з консолі.
+         * @tparam T Тип рядка повернення.
+         * @param prompt Рядок що буде надруковано.
+         * @param stop_chars Набір стоп символів.
+         * @param buffer_size Розмір буфера.
+         * @param echo Якщо true — введені символи одразу відображаються у консолі.
+         * @return Рядок у потрібному форматі.
+         */
         template <typename T = std::string> requires(concepts::is_supported_string<T> || std::is_integral_v<T> || std::is_floating_point_v<T>)
         T input(std::string_view prompt = "", std::string_view stop_chars = "\n", size_t buffer_size = 0, bool echo = true) {
             if (!prompt.empty()) {
@@ -357,14 +428,27 @@ export namespace jzh {
             }
         }
 
+        /**
+         * @brief Читання лінії (до \n) з консолі.
+         * @tparam T Тип рядка повернення.
+         * @param prompt Рядок що буде надруковано.
+         * @return Рядок у потрібному форматі.
+         */
         template <typename T = std::string> requires(concepts::is_supported_string<T> || std::is_integral_v<T> || std::is_floating_point_v<T>)
         T input_line(std::string_view prompt = "") {
             return this->input<T>(prompt, "\n", 0, true);
         }
     };
 
+    /**
+     * @brief Спеціальний клас для друкування у системний потік помилок.
+     */
     class ConsoleErrorIO : public ConsoleBaseIO {
     private:
+        /**
+         * @brief Низькорівнева функція запису рядків у системний потік помилок.
+         * @param str Рядок для запису, у форматі UTF-8.
+         */
         void write_to_console(std::string_view str) override {
             if (str.empty()) {
                 return;
@@ -416,9 +500,22 @@ export namespace jzh {
         }
     };
 
-    ConsoleIO cio = ConsoleIO();
-    ConsoleErrorIO ceio = ConsoleErrorIO();
 
+    /**
+     * @brief Глобальний об'єкт ConsoleIO()
+     */
+    inline ConsoleIO cio{};
+    /**
+     * @brief Глобальний об'єкт ConsoleErrorIO()
+    */
+    inline ConsoleErrorIO ceio{};
+
+
+    /**
+     * @name Функції-обгортки над cio
+     * @note Спрощений доступ до функціоналу ConsoleIO без явного виклику cio.
+     * @{
+     */
     template<typename FormatString, typename... Args>
     void print(const FormatString& fmt, Args&&... args) {
         cio.print(std::basic_string_view(fmt), std::forward<Args>(args)...);
@@ -443,4 +540,5 @@ export namespace jzh {
     T input(std::string_view prompt = "", std::string_view stop_chars = "\n", size_t buffer_size = 0, bool echo = true) {
         return cio.input<T>(prompt, stop_chars, buffer_size, echo);
     }
+    /** @} */
 } // namespace jzh
