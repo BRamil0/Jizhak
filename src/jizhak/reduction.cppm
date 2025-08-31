@@ -13,6 +13,9 @@ import std;
 #endif
 
 export namespace jzh::reduction {
+    /**
+     * @brief Скорочення для типів символів.
+     */
     inline namespace symbol {
         using wc = wchar_t;
         using u8c = char8_t;
@@ -20,6 +23,9 @@ export namespace jzh::reduction {
         using u32c = char32_t;
     }
 
+    /**
+     * @brief Скорочення для типів рядків.
+    */
     inline namespace string {
         using str = std::string;
         using wstr = std::wstring;
@@ -31,6 +37,10 @@ export namespace jzh::reduction {
         using u16s = std::u16string;
         using u32s = std::u32string;
     }
+
+    /**
+     * @brief Перевантажені оператори _s для конвертації списків символів у рядок.
+     */
     inline namespace string_literals {
         constexpr std::string operator""_s(const char* string, std::size_t size) {
             return std::string(string, size);
