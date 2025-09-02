@@ -1,3 +1,4 @@
+/// Файл для роботи з консольним вводом/виводом.
 module;
 
 #if !defined(USE_OF_STD_MODULE)
@@ -37,6 +38,7 @@ module;
 import std;
 #endif
 
+/// Модуль для роботи з консольним вводом/виводом.
 export module jizhak.io.console;
 
 export namespace jzh::concepts {
@@ -57,14 +59,10 @@ export namespace jzh {
      */
     class ConsoleBaseIO {
     private:
-        /**
-         * @brief Роздільник між елементами для print_all() та println_all().
-         */
+        /// Роздільник між елементами для print_all() та println_all().
         std::string sep = " ";
 
-        /**
-         * @brief Закінчення яке додає println() та println_all().
-         */
+        /// Закінчення яке додає println() та println_all().
         std::string end = "\n";
 
     protected:
@@ -501,13 +499,10 @@ export namespace jzh {
     };
 
 
-    /**
-     * @brief Глобальний об'єкт ConsoleIO()
-     */
+	/// Глобальний об'єкт ConsoleIO()
     inline ConsoleIO cio{};
-    /**
-     * @brief Глобальний об'єкт ConsoleErrorIO()
-    */
+
+    /// Глобальний об'єкт ConsoleErrorIO()
     inline ConsoleErrorIO ceio{};
 
 

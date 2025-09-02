@@ -1,3 +1,4 @@
+/// Модуль інформації про платформу.
 export module jizhak.platform_info;
 
 export namespace jzh::compiler {

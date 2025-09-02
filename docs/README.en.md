@@ -38,7 +38,7 @@ import jizhak;
 ```
 
 ### Usage Examples
-See the [example](example.en.md) file.
+See the [example.cpp](example/main_example.cpp) file.
 
 ### License
 This project is licensed under the **MIT** License. For more details, see the [LICENSE](../LICENSE.txt) file.

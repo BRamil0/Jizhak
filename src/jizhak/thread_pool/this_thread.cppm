@@ -8,6 +8,7 @@ module;
 #include <type_traits>
 #endif
 
+/// Модуль для роботи з теперішнім потоком (thread).
 export module jizhak.thread_pool.this_thread;
 
 import jizhak.thread_pool.tpm_base;
@@ -19,10 +20,12 @@ import std;
 
 
 namespace jzh::thread::this_thread {
+    /// Вказівник на tpm.
     inline thread_local std::weak_ptr<ThreadPoolManagerBase> current_tpm{};
 }
 
 export namespace jzh::thread::this_thread {
+    /// Очистити вказівник tpm.
     inline void unregister_this_thread() {
         current_tpm = std::weak_ptr<ThreadPoolManagerBase>{};
     }
@@ -35,6 +38,7 @@ export namespace jzh::thread::this_thread {
         return current_tpm;
     }
 
+    /// Перевірка на використання багатопотоковості та tpm.
     [[nodiscard]] inline bool is_multithreaded() {
         return current_tpm.lock() != nullptr;
     }

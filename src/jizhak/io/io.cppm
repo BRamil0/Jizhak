@@ -1,3 +1,4 @@
+/// Загальний модуль для реімпорту всіх модулів IO.
 export module jizhak.io;
 
 export import jizhak.io.console;

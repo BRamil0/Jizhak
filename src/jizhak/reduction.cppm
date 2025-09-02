@@ -6,6 +6,7 @@ module;
 #include <string_view>
 #endif
 
+/// Модуль для скорочень.
 export module jizhak.reduction;
 
 #if defined(USE_OF_STD_MODULE)
@@ -13,9 +14,7 @@ import std;
 #endif
 
 export namespace jzh::reduction {
-    /**
-     * @brief Скорочення для типів символів.
-     */
+    /// Скорочення для типів символів.
     inline namespace symbol {
         using wc = wchar_t;
         using u8c = char8_t;
@@ -23,9 +22,7 @@ export namespace jzh::reduction {
         using u32c = char32_t;
     }
 
-    /**
-     * @brief Скорочення для типів рядків.
-    */
+    /// @brief Скорочення для типів рядків.
     inline namespace string {
         using str = std::string;
         using wstr = std::wstring;
@@ -38,9 +35,7 @@ export namespace jzh::reduction {
         using u32s = std::u32string;
     }
 
-    /**
-     * @brief Перевантажені оператори _s для конвертації списків символів у рядок.
-     */
+    /// Перевантажені оператори _s для конвертації списків символів у рядок.
     inline namespace string_literals {
         constexpr std::string operator""_s(const char* string, std::size_t size) {
             return std::string(string, size);
@@ -79,6 +74,7 @@ export namespace jzh::reduction {
     }
 } // jzh::reduction
 
+/// Псевдонім для зручного використання using.
 export namespace jzh::using_reduction::reduction {
     using namespace jzh::reduction;
 }

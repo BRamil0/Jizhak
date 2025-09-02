@@ -9,6 +9,7 @@ module;
 #include <type_traits>
 #endif
 
+/// Модуль для роботи з помилками.
 export module jizhak.error;
 
 #if defined(USE_OF_STD_MODULE)
@@ -29,6 +30,7 @@ template<typename T>
 inline constexpr bool dependent_false = false;
 
 export namespace jzh {
+	/// Список кодів помилок для бібліотеки.
     enum struct JizhakErrorID {
         OK = 0,
         pass,
@@ -58,12 +60,23 @@ export namespace jzh {
         file_not_open,
     };
 
+    /**
+     * Додає стандартне повідомлення про помилку.
+     * @tparam T Будь-яке підтримуване перерахування.
+     * @param code_id Код помилки.
+     * @return Текстовий рядок у std::string_view.
+     *
+     * @note Увага, цю функцію треба обов'язково перевантажувати під конкретне перерахування.
+    */
     template <typename T> requires concepts::is_supported_enum<T>
     constexpr std::string_view default_message_for([[maybe_unused]] T code_id) {
         static_assert(dependent_false<T>, "You forgot to overload the function");
         return {};
     };
 
+    /**
+     * @note Перевантаження для JizhakErrorID.
+    */
     template <>
     constexpr std::string_view default_message_for(JizhakErrorID code_id) {
         switch (code_id) {
@@ -74,6 +87,9 @@ export namespace jzh {
         }
     }
 
+    /**
+     * @brief Спеціальний клас для кидання помилок.
+    */
     template <typename TErrorID> requires concepts::is_supported_enum<TErrorID>
     struct Error : public std::exception {
         TErrorID id = TErrorID::none;

@@ -1,3 +1,4 @@
+/// Модуль для повного імпорту всієї бібліотеки.
 export module jizhak;
 
 export import jizhak.platform_info;

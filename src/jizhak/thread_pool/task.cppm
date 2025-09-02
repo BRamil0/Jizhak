@@ -12,6 +12,7 @@ module;
 #include <utility>
 #endif
 
+/// Модуль для роботи з завданням (@c Tast).
 export module jizhak.thread_pool.task;
 
 #if defined(USE_OF_STD_MODULE)
@@ -24,6 +25,7 @@ export namespace jzh::thread {
     struct Task;
     struct TaskInfo;
 
+    /// Статус завдання.
     enum struct TaskStatus {
         completed,
         completed_synchronously,
@@ -35,6 +37,7 @@ export namespace jzh::thread {
         none,
     };
 
+    /// Структура для зручного заповнення полів.
     struct TaskInfoField {
         std::chrono::seconds timeout = std::chrono::seconds::zero();
         long long priority = 0;
@@ -42,6 +45,7 @@ export namespace jzh::thread {
         bool is_async = false;
     };
 
+    /// Структура інформації про завдання.
     struct TaskInfo {
         using id_t = unsigned long long;
         using error_t = std::exception_ptr;
@@ -87,6 +91,7 @@ export namespace jzh::thread {
             is_async(task_info_field.is_async) {}
     };
 
+    /// Структура де знаходиться завдання.
     struct Task {
         using Function = std::move_only_function<void() noexcept(false)>;
         using id_t = TaskInfo::id_t;
@@ -107,6 +112,7 @@ export namespace jzh::thread {
         }
     };
 
+    /// Дозволяє працювати з вказівником на завдання.
     struct TaskPointer {
         std::shared_ptr<Task> task_ptr{};
 
