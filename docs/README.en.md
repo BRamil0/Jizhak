@@ -1,6 +1,6 @@
 ## Jižak
 
-__[Ukrainian](../README.md)__
+__[Українська](../README.md)__
 
 #### Description
 This is a small C++23 library that provides various tools.
@@ -39,6 +39,14 @@ import jizhak;
 
 ### Usage Examples
 See the [example.cpp](example/main_example.cpp) file.
+
+### Automatic Doxyfile documentation
+1. Install Doxyfile.
+2. Execute in the project root:
+    ```bash
+    doxygen Doxyfile
+    ```
+3. View the [index.html](docs/doxygen/html/index.html) file at the path `/docs/doxygen/html/index.html`.
 
 ### License
 This project is licensed under the **MIT** License. For more details, see the [LICENSE](../LICENSE.txt) file.

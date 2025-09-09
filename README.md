@@ -8,7 +8,7 @@ __[English](docs/README.en.md)__
 ### Особливості
 - Написано з використанням надсучасних можливостей C++23.
 - Повне використання модулів.
-- Повна підтримка унікоду (Unicode).
+- Повна підтримка Unicode.
 - Універсальність.
 
 ### Залежності
@@ -39,6 +39,14 @@ import jizhak;
 
 ### Приклади використання
 Дивиться файл [example.cpp](example/main_example.cpp).
+
+### Автоматична документація Doxyfile
+1. Встановить Doxyfile.
+2. Виконайте в корні проєкту:
+    ```bash
+    doxygen Doxyfile
+    ```
+3. Перегляньте файл [index.html](docs/doxygen/html/index.html) за шляхом `/docs/doxygen/html/index.html`.
 
 ### Ліцензія
 Цей проєкт ліцензовано за ліцензією **MIT**. Детальніше дивіться у файлі [LICENSE](LICENSE.txt).
