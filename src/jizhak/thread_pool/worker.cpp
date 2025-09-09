@@ -1,3 +1,4 @@
+/// Файл реалізації для модуля jizhak.thread_pool.worker.
 module;
 
 #if !defined(USE_OF_STD_MODULE)

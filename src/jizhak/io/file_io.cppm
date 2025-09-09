@@ -20,6 +20,7 @@ module;
 #include <fcntl.h>
 #endif
 
+/// Модуль для роботи з файлами з використанням байтів.
 export module jizhak.io.file;
 export import jizhak.error;
 
@@ -28,15 +29,17 @@ import std;
 #endif
 
 export namespace jzh {
-
+    /// Основний клас
     class FileIO final {
     public:
+        /// Режим відкриття файлу.
         enum struct FileMode {
             read,
             write,
             append,
             read_write
         };
+        /// Вибір точки відліку для функції seek().
         enum struct OffsetMode {
             begin,
             current,
@@ -47,6 +50,7 @@ export namespace jzh {
         using om = OffsetMode;
 
     private:
+        /// Змінна що зберігає файл.
         #if defined(_WIN32)
             HANDLE handle_ = INVALID_HANDLE_VALUE;
         #else
@@ -57,6 +61,12 @@ export namespace jzh {
         FileMode mode_ = FileMode::read_write;
 
     protected:
+        /**
+         * Читає байти до буфера з файлу.
+         * @param buffer Посилання на буфер.
+         * @param size Розмір буфера.
+         * @note Це низькорівнева функція та призначення тільки для внутрішнього використання.
+         */
         void write_to_file(const void* buffer, size_t size) const {
             if (!is_open()) throw std::runtime_error("File is not open for writing.");
 
@@ -73,6 +83,13 @@ export namespace jzh {
             #endif
         }
 
+        /**
+         * Записує байти з буфера до файлу
+         * @param buffer Посилання на буфер.
+         * @param size Розмір буфера.
+         * @return Скільки було записано.
+         * @note Це низькорівнева функція та призначення тільки для внутрішнього використання.
+         */
         size_t read_from_file(void* buffer, size_t size) const {
             if (!is_open()) throw std::runtime_error("File is not open for reading.");
 
@@ -149,6 +166,12 @@ export namespace jzh {
             return mode_ == FileMode::write || mode_ == FileMode::append || mode_ == FileMode::read_write;
         }
 
+        /**
+         * Відкриває файл, якщо файл вже було відкрито, то повертає JizhakErrorID::file_already_open.
+         * @param file_path Шлях до файлу.
+         * @param mode Режим відкриття, за замовченням FileMode::read_write.
+         * @return Опціонально повертає помилку з JizhakError.
+         */
         std::optional<JizhakError> open(const std::filesystem::path &file_path, const FileMode mode = FileMode::read_write) {
             if (is_open())
                 return JizhakError(JizhakErrorID::file_already_open, "File is already open. Close it before opening a new one.");
@@ -213,20 +236,37 @@ export namespace jzh {
             return std::nullopt;
         }
 
+        /**
+         * Записує один байт у файл.
+         * @param data Байт.
+         */
         void write(const std::byte& data) {
             write_to_file(&data, 1);
         }
 
+        /**
+         * Записує багато байтів.
+         * @param data Масив байтів.
+         */
         void write(std::span<const std::byte> const data) {
             write_to_file(data.data(), data.size());
         }
 
+        /**
+         * Читає один байт та змішує вказівник.
+         * @return Повертає байт.
+         */
         [[nodiscard]] std::byte read() { // NOLINT(readability-convert-member-functions-to-static)
             std::byte buffer{};
             if (const size_t bytes_read = read_from_file(&buffer, 1); bytes_read == 0) throw std::runtime_error("End of file reached");
             return buffer;
         }
 
+        /**
+         * Читає скільки скаже bytes_to_read.
+         * @param bytes_to_read Кількість байтів що треба прочитати.
+         * @return Повертає вектор байтів.
+         */
         [[nodiscard]] std::vector<std::byte> read(const size_t bytes_to_read) { // NOLINT(readability-convert-member-functions-to-static)
             std::vector<std::byte> buffer(bytes_to_read);
             const size_t actual_bytes_read = read_from_file(buffer.data(), buffer.size());
@@ -234,6 +274,11 @@ export namespace jzh {
             return buffer;
         }
 
+        /**
+         * Змінює положення вказівника.
+         * @param offset Відносне зміщення від offset_mode.
+         * @param offset_mode Точка рахування, задається через OffsetMode.
+         */
         void seek(long long offset, OffsetMode offset_mode = OffsetMode::current) {
             #if defined(_WIN32)
                 DWORD moveMethod = FILE_CURRENT;

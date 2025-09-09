@@ -11,6 +11,7 @@ module;
 #include <utility>
 #endif
 
+/// Модуль для підтримки оператора co_await.
 export module jizhak.thread_pool.async;
 
 #if defined(USE_OF_STD_MODULE)

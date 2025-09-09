@@ -13,6 +13,7 @@ module;
 #include <unordered_map>
 #endif
 
+/// Модуль для роботи з Виконувачем (Worker).
 export module jizhak.thread_pool.worker;
 
 export import jizhak.thread_pool.task;
@@ -24,6 +25,7 @@ import std;
 
 
 export namespace jzh::thread {
+    /// Базовий клас, не призначено для використання.
     class BaseWorker {
     public:
         using OptionalError = std::optional<JizhakError>;
@@ -34,8 +36,11 @@ export namespace jzh::thread {
 
         std::condition_variable cv{};
         std::atomic<bool> is_shutdown = false;
+
     protected:
+        /// Черга завдань.
         std::deque<TaskPointer> tasks{};
+
         mutable std::mutex queue_mutex{};
 
         virtual OptionalError steal_task();
@@ -76,6 +81,7 @@ export namespace jzh::thread {
 
     };
 
+    /// Основний клас.
     class Worker : public BaseWorker {
     private:
         mutable std::mt19937 random_generator_{};
@@ -86,6 +92,7 @@ export namespace jzh::thread {
 
     };
 
+    /// Зручна структура для отримання інформації.
     struct WorkerInfo {
         std::jthread::id id{};
         std::size_t total_tasks = 0;

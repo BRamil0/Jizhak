@@ -12,7 +12,7 @@ module;
 #include <unordered_map>
 #endif
 
-
+/// Модуль для класу ThreadPoolManagerBase.
 export module jizhak.thread_pool.tpm_base;
 
 export import jizhak.error;
@@ -23,6 +23,7 @@ import std;
 #endif
 
 export namespace jzh::thread {
+    /// Реалізує інтерфейс класу ThreadPoolManager для Виконувачів (Worker).
     class ThreadPoolManagerBase {
     public:
         friend class BaseWorker;

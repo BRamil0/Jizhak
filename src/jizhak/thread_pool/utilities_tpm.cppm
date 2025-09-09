@@ -18,6 +18,7 @@ module;
 #include <vector>
 #endif
 
+// Модуль реалізації необхідних утиліт для tpm.
 export module jizhak.thread_pool.utilities_tpm;
 
 #if defined(USE_OF_STD_MODULE)
@@ -30,6 +31,7 @@ import jizhak.thread_pool.worker;
 import jizhak.thread_pool.tpm_base;
 
 export namespace jzh::thread {
+    /// Реєстр завдань.
     struct TaskRegistry {
     protected:
         std::unordered_map<Task::id_t, TaskPointer> tasks_{};
@@ -173,6 +175,7 @@ export namespace jzh::thread {
         }
     };
 
+    /// Зберігає теперішній список завдань який виконує Виконувач (Worker) та посилання на сам Виконувач (Worker).
     struct WorkerInformationTable : TaskRegistry {
     protected:
         std::shared_ptr<BaseWorker> worker_ptr_{};
@@ -346,6 +349,7 @@ export namespace jzh::thread {
         }
     };
 
+    /// Дозволяє розумно сортувати WorkerInformationTable у контейнері.
     struct WorkerInformationTableSorter {
         std::size_t pending_tasks{};
         std::jthread::id id{};
@@ -353,6 +357,7 @@ export namespace jzh::thread {
         auto operator<=>(const WorkerInformationTableSorter& other) const = default;
     };
 
+    /// Реєстр Виконувачів (Worker).
     template <typename TWorkerInfoTableSorter = WorkerInformationTableSorter, typename TWorkerInfoTable = WorkerInformationTable>
     struct WorkerRegistry {
     public:

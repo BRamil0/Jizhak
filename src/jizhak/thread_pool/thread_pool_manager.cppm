@@ -24,6 +24,7 @@ module;
 #include <vector>
 #endif
 
+/// Модуль де знаходиться менеджер потоків (thread).
 export module jizhak.thread_pool.tpm;
 
 #if defined(USE_OF_STD_MODULE)
@@ -61,12 +62,14 @@ export namespace jzh::concepts {
 } // namespace jzh::concepts
 
 export namespace jzh::thread {
-    template <typename TWorkerRegistry     = WorkerRegistry<>,
-              typename TTaskRegistry       = TaskRegistry,
-              typename TWorker             = Worker>
+    /// Менеджер пулу потоків.
+    template <typename TWorkerRegistry     = WorkerRegistry<>, /// Реєстр Виконувачів (Worker).
+              typename TTaskRegistry       = TaskRegistry, /// Реєстр завдань.
+              typename TWorker             = Worker> /// Виконувач (Worker).
     requires (concepts::is_supported_worker<TWorker>)
-    class ThreadPoolManager : public ThreadPoolManagerBase,
-                              public std::enable_shared_from_this<ThreadPoolManager<TWorkerRegistry, TTaskRegistry, TWorker>> {
+    class ThreadPoolManager : public ThreadPoolManagerBase, /// Інтерфейс.
+                              public std::enable_shared_from_this<ThreadPoolManager<TWorkerRegistry, TTaskRegistry, TWorker>> /// Для підтримки static_pointer_cast.
+    {
     public:
         friend class BaseWorker;
         using OptionalError = std::optional<JizhakError>;
