@@ -22,7 +22,6 @@ module jizhak.thread_pool.worker;
 import std;
 #endif
 
-import jizhak.thread_pool.tpm;
 import jizhak.thread_pool.tpm_base;
 import jizhak.thread_pool.this_thread;
 import jizhak.thread_pool.task;

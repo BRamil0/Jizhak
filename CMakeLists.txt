@@ -1,22 +1,18 @@
-cmake_minimum_required(VERSION 4.0.3)
+cmake_minimum_required(VERSION 4.2.2)
+set(USE_OF_STD_MODULE ON)
+
+if (USE_OF_STD_MODULE)
+    # https://github.com/Kitware/CMake/blob/v4.2.2/Help/dev/experimental.rst#c-import-std-support
+    set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "d0edc3af-4c50-42ea-a356-e2862fe7a444" CACHE STRING "")
+    set(CMAKE_CXX_MODULE_STD ON CACHE BOOL "")
+endif()
 
 include(FetchContent)
-
-set(USE_OF_STD_MODULE OFF)
-
-if (!CMAKE_CXX_COMPILER_ID MATCHES "MSVC" AND USE_OF_STD_MODULE)
-    # https://github.com/Kitware/CMake/blob/v4.0.3/Help/dev/experimental.rst#c-import-std-supportclang++
-    set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "d0edc3af-4c50-42ea-a356-e2862fe7a444")
-    set(CMAKE_CXX_MODULE_STD ON)
-endif()
 
 project(Jizhak LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-set(NOT_USE_NATIVE_STD OFF)
-
 
 if (EXISTS "${CMAKE_BINARY_DIR}/conanbuildinfo.cmake")
     set(USE_OF_CONAN ON)
@@ -35,7 +31,6 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
         message(STATUS "Clang-CL (in VS) CXX Flags: ${CMAKE_CXX_FLAGS}")
 
     else()
-        set(USE_OF_STD_MODULE ON)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4 /permissive- /Zc:__cplusplus") # /Wall /WX
         message(STATUS "MSVC CXX Flags: ${CMAKE_CXX_FLAGS}")
     endif()
@@ -45,7 +40,6 @@ elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang|AppleClang")
     message(STATUS "Clang CXX Flags: ${CMAKE_CXX_FLAGS}")
 
 elseif (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-#    set(GCC_STD_MODULE_PATH "E:/msys64/mingw64/include/c++/15.1.0/bits/std.cc")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fmodules -Wall -Wextra -pedantic -Wshadow -Wconversion") # -fsearch-include-path bits/std.cc
     message(STATUS "GCC CXX Flags: ${CMAKE_CXX_FLAGS}")
 
@@ -72,7 +66,6 @@ if (NOT USE_OF_CONAN)
         FetchContent_Declare(
             fmt
             GIT_REPOSITORY https://github.com/fmtlib/fmt.git
-            GIT_TAG 11.2.0
         )
         FetchContent_MakeAvailable(fmt)
     endif()
@@ -84,42 +77,21 @@ if (NOT USE_OF_CONAN)
         FetchContent_Declare(
             boost
             GIT_REPOSITORY https://github.com/boostorg/boost.git
-            GIT_TAG boost-1.88.0
         )
         FetchContent_MakeAvailable(boost)
     endif()
 endif()
 
 set(CMAKE_CXX_SCAN_FOR_MODULES ON)
-if (!CMAKE_CXX_COMPILER_ID MATCHES "MSVC" AND USE_OF_STD_MODULE)
+if (USE_OF_STD_MODULE)
     set(CMAKE_CXX_EXTENSIONS ON)
 endif()
 
 add_library(Jizhak)
 
 if (USE_OF_STD_MODULE)
+    set_target_properties(Jizhak PROPERTIES CXX_MODULE_STD ON)
     target_compile_definitions(Jizhak PRIVATE USE_OF_STD_MODULE)
-endif()
-
-if (NOT_USE_NATIVE_STD)
-    if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
-        find_file(STD_MODULE_SYSTEM_PATH NAMES std.cc HINTS ${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES}
-                  PATH_SUFFIXES bits DOC "Шлях до системного файлу std.cc" REQUIRED)
-        message(STATUS "Знайдено системний std.cc за шляхом: ${STD_MODULE_SYSTEM_PATH}")
-
-        set(STD_MODULE_LOCAL_PATH ${CMAKE_CURRENT_BINARY_DIR}/std.cc)
-        configure_file(${STD_MODULE_SYSTEM_PATH} ${STD_MODULE_LOCAL_PATH} COPYONLY)
-
-        add_library(std_module)
-
-        target_sources(std_module PUBLIC
-            FILE_SET CXX_MODULES
-            BASE_DIRS ${CMAKE_CURRENT_BINARY_DIR}
-            FILES ${STD_MODULE_LOCAL_PATH}
-        )
-
-        target_link_libraries(Jizhak PRIVATE std_module)
-    endif()
 endif()
 
 if (USE_OF_CONAN)
@@ -148,8 +120,6 @@ target_include_directories(Jizhak PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
     "${CMAKE_CURRENT_BINARY_DIR}"
 )
-
-# Локальні залежності (тести та приклад)
 
 option(JIZHAK_BUILD_TESTS "Build the tests for Jizhak" OFF)
 option(JIZHAK_BUILD_EXAMPLE "Build the example for Jizhak" ON)

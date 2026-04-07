@@ -1,11 +1,7 @@
-#if defined(USE_OF_STD_MODULE)
 import std;
-#else
-#include <future>
-#include <coroutine>
-#endif
 
 import jizhak;
+
 using namespace jzh::using_thread;
 using namespace jzh::using_reduction;
 

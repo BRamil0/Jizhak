@@ -16,11 +16,15 @@ module;
 export module jizhak.thread_pool.tpm_base;
 
 export import jizhak.error;
-import jizhak.thread_pool.worker;
+import jizhak.thread_pool.task;
 
 #if defined(USE_OF_STD_MODULE)
 import std;
 #endif
+
+namespace jzh::thread {
+    struct WorkerInfo;
+}
 
 export namespace jzh::thread {
     /// Реалізує інтерфейс класу ThreadPoolManager для Виконувачів (Worker).

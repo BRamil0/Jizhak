@@ -82,7 +82,7 @@ export namespace jzh::thread {
         TWorkerRegistry worker_registry_{};
         TTaskRegistry task_registry_{};
 
-        std::atomic<size_t> pending_tasks_{0};
+        std::atomic<std::size_t> pending_tasks_{0};
 
         std::atomic<bool> pause_ = false;
         std::atomic<bool> this_context_ = false;
@@ -424,17 +424,17 @@ export namespace jzh::thread {
         }
 
 
-        [[nodiscard]] size_t size() const override {
+        [[nodiscard]] std::size_t size() const override {
             return number_workers() + number_tasks();
         }
 
 
-        [[nodiscard]] size_t number_tasks() const override {
+        [[nodiscard]] std::size_t number_tasks() const override {
             return this->task_registry_.size();
         }
 
 
-        [[nodiscard]] size_t number_workers() const override {
+        [[nodiscard]] std::size_t number_workers() const override {
             std::scoped_lock lock(mutex_);
             return this->worker_registry_.size();
         }
